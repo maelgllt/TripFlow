@@ -1,7 +1,7 @@
 import React, { createContext, useContext, useState, useEffect } from 'react';
-import AsyncStorage from '@react-native-async-storage/async-storage';
 import { User } from '@/types/database';
 import { DatabaseService } from '@/services/database';
+import { getRememberedUserId, rememberUser, forgetUser } from '@/services/userSession';
 
 interface AuthContextType {
   isAuthenticated: boolean;
@@ -34,12 +34,16 @@ export const AuthProvider = ({ children }: { children: React.ReactNode }) => {
 
   const checkAuthStatus = async () => {
     try {
-      const userId = await AsyncStorage.getItem('userId');
+      // Utiliser SecureStore au lieu d'AsyncStorage
+      const userId = await getRememberedUserId();
       if (userId) {
-        const userData = await DatabaseService.getUserById(parseInt(userId));
+        const userData = await DatabaseService.getUserById(userId);
         if (userData) {
           setIsAuthenticated(true);
           setUser(userData);
+        } else {
+          // Si l'utilisateur n'existe plus dans la DB, nettoyer la session
+          await forgetUser();
         }
       }
     } catch (error) {
@@ -53,7 +57,8 @@ export const AuthProvider = ({ children }: { children: React.ReactNode }) => {
     try {
       const userData = await DatabaseService.loginUser(email, password);
       if (userData) {
-        await AsyncStorage.setItem('userId', userData.id.toString());
+        // Utiliser SecureStore au lieu d'AsyncStorage
+        await rememberUser(userData.id);
         setIsAuthenticated(true);
         setUser(userData);
         return true;
@@ -71,7 +76,8 @@ export const AuthProvider = ({ children }: { children: React.ReactNode }) => {
       if (userId) {
         const userData = await DatabaseService.getUserById(userId);
         if (userData) {
-          await AsyncStorage.setItem('userId', userId.toString());
+          // Utiliser SecureStore au lieu d'AsyncStorage
+          await rememberUser(userId);
           setIsAuthenticated(true);
           setUser(userData);
           return true;
@@ -86,7 +92,8 @@ export const AuthProvider = ({ children }: { children: React.ReactNode }) => {
 
   const logout = async () => {
     try {
-      await AsyncStorage.removeItem('userId');
+      // Utiliser SecureStore au lieu d'AsyncStorage
+      await forgetUser();
       setIsAuthenticated(false);
       setUser(null);
     } catch (error) {

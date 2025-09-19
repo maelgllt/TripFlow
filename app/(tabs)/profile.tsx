@@ -6,12 +6,10 @@ import {
   Alert,
   ScrollView,
 } from 'react-native';
-import { useRouter } from 'expo-router';
 import { Ionicons } from '@expo/vector-icons';
 import { useAuth } from '@/contexts/AuthContext';
 
 export default function ProfileScreen() {
-  const router = useRouter();
   const { user, logout } = useAuth();
 
   const handleLogout = () => {
@@ -29,7 +27,8 @@ export default function ProfileScreen() {
           onPress: async () => {
             try {
               await logout();
-              router.replace('/(auth)/index');
+              // La redirection sera automatique grâce au useEffect dans _layout.tsx
+              // Pas besoin de router.replace('/(auth)/index');
             } catch (error) {
               console.error('Erreur lors de la déconnexion:', error);
             }
@@ -77,6 +76,7 @@ export default function ProfileScreen() {
   );
 }
 
+// ...existing styles...
 const styles = StyleSheet.create({
   container: {
     flex: 1,

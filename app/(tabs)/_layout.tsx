@@ -6,13 +6,12 @@ import { useColorScheme } from '@/hooks/use-color-scheme';
 import { ActivityIndicator, View, Image, StyleSheet } from 'react-native';
 import { useAuth } from '@/contexts/AuthContext';
 import { Redirect } from 'expo-router';
-import { useSafeAreaInsets } from 'react-native-safe-area-context';
 
 function HeaderTitle() {
   return (
     <View style={styles.headerTitleContainer}>
       <Image 
-        source={require('@/assets/images/Logo.png')} 
+        source={require('@/assets/images/Logo_TripFlow.png')} 
         style={styles.logo}
         resizeMode="contain"
       />
@@ -23,7 +22,6 @@ function HeaderTitle() {
 export default function TabLayout() {
   const colorScheme = useColorScheme();
   const { isAuthenticated, loading } = useAuth();
-  const insets = useSafeAreaInsets();
 
   if (loading) {
     return (
@@ -34,7 +32,7 @@ export default function TabLayout() {
   }
 
   if (!isAuthenticated) {
-    return <Redirect href="/(auth)/index" />;
+    return <Redirect href="/(auth)" />;
   }
 
   return (
@@ -49,7 +47,6 @@ export default function TabLayout() {
           shadowOffset: { width: 0, height: 2 },
           shadowOpacity: 0.1,
           shadowRadius: 4,
-          paddingTop: insets.top,
         },
         headerTitle: () => <HeaderTitle />,
         headerTitleAlign: 'center',

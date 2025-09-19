@@ -20,7 +20,8 @@ export default function LoginScreen() {
     try {
       const success = await login(email, password);
       if (success) {
-        router.replace('/(tabs)');
+        // La redirection sera automatique grâce au useEffect dans _layout.tsx
+        // Pas besoin de router.replace('/(tabs)');
       } else {
         Alert.alert('Erreur', 'Email ou mot de passe incorrect');
       }

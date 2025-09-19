@@ -9,7 +9,7 @@ export default function AuthIndexScreen() {
       <View style={styles.content}>
         <View style={styles.logoContainer}>
           <Image 
-            source={require('@/assets/images/Logo.png')} 
+            source={require('@/assets/images/Logo_TripFlow.png')} 
             style={styles.logo}
             resizeMode="contain"
           />

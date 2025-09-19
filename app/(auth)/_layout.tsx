@@ -6,7 +6,7 @@ function HeaderTitle() {
   return (
     <View style={styles.headerTitleContainer}>
       <Image 
-        source={require('@/assets/images/Logo.png')} 
+        source={require('@/assets/images/Logo_TripFlow.png')} 
         style={styles.logo}
         resizeMode="contain"
       />
