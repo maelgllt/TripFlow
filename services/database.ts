@@ -1,5 +1,5 @@
 import * as SQLite from 'expo-sqlite';
-import { User } from '@/types/database';
+import { Step, Trip, User } from '@/types/database';
 
 const db = SQLite.openDatabaseSync('tripflow.db');
 
@@ -121,6 +121,121 @@ export class DatabaseService {
     } catch (error) {
       console.error('Error getting user by id:', error);
       return null;
+    }
+  }
+
+  static async createTrip(
+    userId: number, 
+    title: string, 
+    description?: string, 
+    startDate?: string, 
+    endDate?: string, 
+    coverImage?: string
+  ): Promise<number | null> {
+    try {
+      const result = db.runSync(
+        'INSERT INTO trips (user_id, title, description, start_date, end_date, cover_image, created_at, updated_at) VALUES (?, ?, ?, ?, ?, ?, datetime("now"), datetime("now"))',
+        [userId, title, description || null, startDate || null, endDate || null, coverImage || null]
+      );
+      return result.lastInsertRowId;
+    } catch (error) {
+      console.error('Error creating trip:', error);
+      throw error;
+    }
+  }
+
+  static async getTripsByUserId(userId: number): Promise<Trip[]> {
+    try {
+      const trips = db.getAllSync(
+        'SELECT * FROM trips WHERE user_id = ? ORDER BY created_at DESC',
+        [userId]
+      ) as Trip[];
+      return trips;
+    } catch (error) {
+      console.error('Error getting trips:', error);
+      return [];
+    }
+  }
+
+  static async getTripById(tripId: number): Promise<Trip | null> {
+    try {
+      const trip = db.getFirstSync(
+        'SELECT * FROM trips WHERE id = ?',
+        [tripId]
+      ) as Trip | null;
+      return trip;
+    } catch (error) {
+      console.error('Error getting trip by id:', error);
+      return null;
+    }
+  }
+
+  static async deleteTrip(tripId: number): Promise<boolean> {
+    try {
+      const result = db.runSync(
+        'DELETE FROM trips WHERE id = ?',
+        [tripId]
+      );
+      return result.changes > 0;
+    } catch (error) {
+      console.error('Error deleting trip:', error);
+      return false;
+    }
+  }
+
+  static async createStep(
+    tripId: number,
+    title: string,
+    description?: string,
+    latitude?: number,
+    longitude?: number,
+    address?: string,
+    startDate?: string,
+    endDate?: string
+  ): Promise<number | null> {
+    try {
+      // Obtenir le prochain order_index
+      const maxOrder = db.getFirstSync(
+        'SELECT MAX(order_index) as max_order FROM steps WHERE trip_id = ?',
+        [tripId]
+      ) as { max_order: number | null };
+      
+      const orderIndex = (maxOrder?.max_order || 0) + 1;
+
+      const result = db.runSync(
+        'INSERT INTO steps (trip_id, title, description, latitude, longitude, address, start_date, end_date, order_index, created_at) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, datetime("now"))',
+        [tripId, title, description || null, latitude || null, longitude || null, address || null, startDate || null, endDate || null, orderIndex]
+      );
+      return result.lastInsertRowId;
+    } catch (error) {
+      console.error('Error creating step:', error);
+      throw error;
+    }
+  }
+
+  static async getStepsByTripId(tripId: number): Promise<Step[]> {
+    try {
+      const steps = db.getAllSync(
+        'SELECT * FROM steps WHERE trip_id = ? ORDER BY order_index ASC',
+        [tripId]
+      ) as Step[];
+      return steps;
+    } catch (error) {
+      console.error('Error getting steps:', error);
+      return [];
+    }
+  }
+
+  static async deleteStep(stepId: number): Promise<boolean> {
+    try {
+      const result = db.runSync(
+        'DELETE FROM steps WHERE id = ?',
+        [stepId]
+      );
+      return result.changes > 0;
+    } catch (error) {
+      console.error('Error deleting step:', error);
+      return false;
     }
   }
 }
