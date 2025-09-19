@@ -73,12 +73,13 @@ export default function CreateStep() {
     setSearchResults([]);
   };
 
-  const validateDates = (start: Date, end: Date): string | null => {
+  const validateDates = async (start: Date, end: Date): Promise<string | null> => {
     if (!trip) return 'Données du voyage non disponibles';
 
     const tripStart = trip.start_date ? new Date(trip.start_date) : null;
     const tripEnd = trip.end_date ? new Date(trip.end_date) : null;
 
+    // Vérifier les limites du voyage
     if (tripStart && start < tripStart) {
       return 'La date de début doit être après le début du voyage';
     }
@@ -89,6 +90,25 @@ export default function CreateStep() {
 
     if (start > end) {
       return 'La date de début ne peut pas être après la date de fin';
+    }
+
+    // Vérifier les conflits de dates
+    try {
+      const startDateStr = start.toISOString().split('T')[0];
+      const endDateStr = end.toISOString().split('T')[0];
+      
+      const conflictingSteps = await DatabaseService.checkDateConflicts(
+        parseInt(tripId as string),
+        startDateStr,
+        endDateStr
+      );
+      
+      if (conflictingSteps.length > 0) {
+        return `Conflit de dates avec l'étape "${conflictingSteps[0].title}"`;
+      }
+    } catch (error) {
+      console.error('Error checking date conflicts:', error);
+      return 'Erreur lors de la vérification des dates';
     }
 
     return null;
@@ -110,7 +130,8 @@ export default function CreateStep() {
       return;
     }
 
-    const dateError = validateDates(startDate, endDate);
+    // Validation asynchrone des dates
+    const dateError = await validateDates(startDate, endDate);
     if (dateError) {
       Alert.alert('Erreur', dateError);
       return;
@@ -121,36 +142,63 @@ export default function CreateStep() {
     setIsLoading(true);
 
     try {
-      const stepId = await DatabaseService.createStep(
-        parseInt(tripId),
-        stepTitle.trim(),
-        description.trim() || undefined,
-        parseFloat(selectedLocation.lat),
-        parseFloat(selectedLocation.lon),
-        selectedLocation.display_name,
-        startDate.toISOString().split('T')[0],
-        endDate.toISOString().split('T')[0]
-      );
-
-      if (stepId) {
-        Alert.alert(
-          'Succès',
-          'Étape créée avec succès !',
-          [
-            {
-              text: 'OK',
-              onPress: () => router.back(),
-            },
-          ]
-        );
-      } else {
-        Alert.alert('Erreur', 'Impossible de créer l\'étape');
+      // Récupérer les étapes existantes pour calculer l'ordre
+      const existingSteps = await DatabaseService.getStepsByTripId(parseInt(tripId));
+      
+      // Calculer l'ordre basé sur la date de début
+      let stepOrder = 1;
+      for (const step of existingSteps) {
+        if (step.start_date && new Date(step.start_date) < startDate) {
+          stepOrder++;
+        }
       }
+
+      const newStep = {
+        trip_id: parseInt(tripId),
+        title: stepTitle,
+        description: description || null,
+        location: selectedLocation.display_name,
+        latitude: parseFloat(selectedLocation.lat),
+        longitude: parseFloat(selectedLocation.lon),
+        start_date: startDate.toISOString().split('T')[0],
+        end_date: endDate.toISOString().split('T')[0],
+        step_order: stepOrder,
+      };
+
+      await DatabaseService.createStep(newStep);
+      
+      // Réorganiser l'ordre de toutes les étapes après création
+      await reorderSteps(parseInt(tripId));
+      
+      Alert.alert('Succès', 'Étape créée avec succès', [
+        {
+          text: 'OK',
+          onPress: () => router.back(),
+        },
+      ]);
     } catch (error) {
       console.error('Error creating step:', error);
-      Alert.alert('Erreur', 'Une erreur est survenue lors de la création de l\'étape');
+      Alert.alert('Erreur', 'Impossible de créer l\'étape');
     } finally {
       setIsLoading(false);
+    }
+  };
+
+  const reorderSteps = async (tripId: number) => {
+    try {
+      const steps = await DatabaseService.getStepsByTripId(tripId);
+      
+      // Trier les étapes par date de début
+      const sortedSteps = steps.sort((a, b) => 
+        new Date(a.start_date ?? '').getTime() - new Date(b.start_date ?? '').getTime()
+      );
+      
+      // Mettre à jour l'ordre de chaque étape
+      for (let i = 0; i < sortedSteps.length; i++) {
+        await DatabaseService.updateStepOrder(sortedSteps[i].id, i + 1);
+      }
+    } catch (error) {
+      console.error('Error reordering steps:', error);
     }
   };
 
@@ -229,13 +277,24 @@ export default function CreateStep() {
           {/* Résultats de recherche */}
           {searchResults.length > 0 && (
             <View style={styles.searchResults}>
-              <FlatList
-                data={searchResults}
-                renderItem={renderLocationResult}
-                keyExtractor={(item) => item.place_id.toString()}
+              <ScrollView 
                 style={styles.resultsList}
                 nestedScrollEnabled={true}
-              />
+                showsVerticalScrollIndicator={false}
+              >
+                {searchResults.map((item) => (
+                  <TouchableOpacity
+                    key={item.place_id.toString()}
+                    style={styles.locationResult}
+                    onPress={() => selectLocation(item)}
+                  >
+                    <Ionicons name="location-outline" size={16} color="#007AFF" />
+                    <Text style={styles.locationText} numberOfLines={2}>
+                      {item.display_name}
+                    </Text>
+                  </TouchableOpacity>
+                ))}
+              </ScrollView>
             </View>
           )}
 

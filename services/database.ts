@@ -183,28 +183,31 @@ export class DatabaseService {
     }
   }
 
-  static async createStep(
-    tripId: number,
-    title: string,
-    description?: string,
-    latitude?: number,
-    longitude?: number,
-    address?: string,
-    startDate?: string,
-    endDate?: string
-  ): Promise<number | null> {
+  static async createStep(stepData: {
+    trip_id: number;
+    title: string;
+    description?: string | null;
+    location: string;
+    latitude: number;
+    longitude: number;
+    start_date: string;
+    end_date: string;
+    step_order: number;
+  }): Promise<number | null> {
     try {
-      // Obtenir le prochain order_index
-      const maxOrder = db.getFirstSync(
-        'SELECT MAX(order_index) as max_order FROM steps WHERE trip_id = ?',
-        [tripId]
-      ) as { max_order: number | null };
-      
-      const orderIndex = (maxOrder?.max_order || 0) + 1;
-
       const result = db.runSync(
-        'INSERT INTO steps (trip_id, title, description, latitude, longitude, address, start_date, end_date, order_index, created_at) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, datetime("now"))',
-        [tripId, title, description || null, latitude || null, longitude || null, address || null, startDate || null, endDate || null, orderIndex]
+        'INSERT INTO steps (trip_id, title, description, address, latitude, longitude, start_date, end_date, order_index, created_at) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, datetime("now"))',
+        [
+          stepData.trip_id,
+          stepData.title,
+          stepData.description || null,
+          stepData.location,
+          stepData.latitude,
+          stepData.longitude,
+          stepData.start_date,
+          stepData.end_date,
+          stepData.step_order
+        ]
       );
       return result.lastInsertRowId;
     } catch (error) {
@@ -213,15 +216,53 @@ export class DatabaseService {
     }
   }
 
+  static async updateStepOrder(stepId: number, newOrder: number): Promise<void> {
+    try {
+      db.runSync(
+        'UPDATE steps SET order_index = ? WHERE id = ?',
+        [newOrder, stepId]
+      );
+    } catch (error) {
+      console.error('Error updating step order:', error);
+      throw error;
+    }
+  }
+
   static async getStepsByTripId(tripId: number): Promise<Step[]> {
     try {
       const steps = db.getAllSync(
-        'SELECT * FROM steps WHERE trip_id = ? ORDER BY order_index ASC',
+        'SELECT * FROM steps WHERE trip_id = ? ORDER BY start_date ASC, order_index ASC',
         [tripId]
       ) as Step[];
       return steps;
     } catch (error) {
       console.error('Error getting steps:', error);
+      return [];
+    }
+  }
+
+  static async checkDateConflicts(tripId: number, startDate: string, endDate: string, excludeStepId?: number): Promise<Step[]> {
+    try {
+      let query = `
+        SELECT * FROM steps 
+        WHERE trip_id = ? 
+        AND (
+          (start_date <= ? AND end_date >= ?) OR
+          (start_date <= ? AND end_date >= ?) OR
+          (start_date >= ? AND end_date <= ?)
+        )
+      `;
+      let params = [tripId, startDate, startDate, endDate, endDate, startDate, endDate];
+      
+      if (excludeStepId) {
+        query += ' AND id != ?';
+        params.push(excludeStepId);
+      }
+      
+      const conflictingSteps = db.getAllSync(query, params) as Step[];
+      return conflictingSteps;
+    } catch (error) {
+      console.error('Error checking date conflicts:', error);
       return [];
     }
   }

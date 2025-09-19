@@ -46,6 +46,33 @@ export default function HomeScreen() {
     });
   };
 
+  const handleDeleteTrip = (trip: Trip) => {
+    Alert.alert(
+      'Supprimer le voyage',
+      `Êtes-vous sûr de vouloir supprimer "${trip.title}" ?\n\nCette action est irréversible.`,
+      [
+        {
+          text: 'Annuler',
+          style: 'cancel',
+        },
+        {
+          text: 'Supprimer',
+          style: 'destructive',
+          onPress: async () => {
+            try {
+              await DatabaseService.deleteTrip(trip.id);
+              setTrips(prevTrips => prevTrips.filter(t => t.id !== trip.id));
+              Alert.alert('Succès', 'Le voyage a été supprimé');
+            } catch (error) {
+              console.error('Error deleting trip:', error);
+              Alert.alert('Erreur', 'Impossible de supprimer le voyage');
+            }
+          },
+        },
+      ]
+    );
+  };
+
   // Couleurs de fond par défaut si pas d'image
   const getDefaultBackgroundColor = (index: number) => {
     const colors = [
@@ -65,6 +92,7 @@ export default function HomeScreen() {
         <TouchableOpacity
           style={styles.tripCard}
           onPress={() => router.push(`/trip/${item.id}`)}
+          onLongPress={() => handleDeleteTrip(item)}
         >
           <ImageBackground
             source={{ uri: item.cover_image }}
@@ -98,6 +126,7 @@ export default function HomeScreen() {
         <TouchableOpacity
           style={[styles.tripCard, { backgroundColor: getDefaultBackgroundColor(index) }]}
           onPress={() => router.push(`/trip/${item.id}`)}
+          onLongPress={() => handleDeleteTrip(item)}
         >
           <View style={styles.cardContent}>
             <View style={styles.cardInfo}>

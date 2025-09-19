@@ -105,9 +105,6 @@ export default function CreateTripScreen() {
   return (
     <ScrollView style={styles.container}>
       <View style={styles.header}>
-        <TouchableOpacity onPress={() => router.back()} style={styles.backButton}>
-          <Ionicons name="arrow-back" size={24} color="#007AFF" />
-        </TouchableOpacity>
         <Text style={styles.headerTitle}>Nouveau voyage</Text>
       </View>
 
