@@ -147,10 +147,20 @@ export default function EditStep() {
   };
 
   const handleSave = async () => {
+  if (!stepId || Array.isArray(stepId)) {
+    Alert.alert('Erreur', 'ID d\'étape invalide');
+    return;
+  }
+
+  if (!validateForm()) {
+    return;
+  }
+
   try {
-    const success = await DatabaseService.updateStep(stepId, {
-      title: title,
-      description: description,
+    setIsSaving(true);
+    const success = await DatabaseService.updateStep(parseInt(stepId), {
+      title: title.trim(),
+      description: description.trim() || null,
       address: selectedLocation?.display_name || null,
       latitude: selectedLocation ? parseFloat(selectedLocation.lat) : null,
       longitude: selectedLocation ? parseFloat(selectedLocation.lon) : null,
@@ -159,10 +169,17 @@ export default function EditStep() {
     });
     
     if (success) {
-      router.back();
+      Alert.alert('Succès', 'Étape modifiée avec succès', [
+        { text: 'OK', onPress: () => router.back() }
+      ]);
+    } else {
+      Alert.alert('Erreur', 'Impossible de modifier l\'étape');
     }
   } catch (error) {
     console.error('Error updating step:', error);
+    Alert.alert('Erreur', 'Une erreur est survenue lors de la modification');
+  } finally {
+    setIsSaving(false);
   }
 };
 
