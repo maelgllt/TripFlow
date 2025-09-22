@@ -126,21 +126,24 @@ export default function StepDetails() {
 
       {/* Informations de l'étape */}
       <View style={styles.infoSection}>
-        {/* Adresse */}
-        {step.address && (
-          <View style={styles.infoCard}>
-            <View style={styles.infoHeader}>
-              <Ionicons name="location" size={20} color="#007AFF" />
-              <Text style={styles.infoTitle}>Localisation</Text>
-            </View>
-            <Text style={styles.infoContent}>{step.address}</Text>
-            {step.latitude && step.longitude && (
-              <Text style={styles.coordinates}>
-                📍 {step.latitude.toFixed(6)}, {step.longitude.toFixed(6)}
-              </Text>
-            )}
+        <View style={styles.infoCard}>
+          <View style={styles.infoHeader}>
+            <Ionicons name="location" size={20} color="#007AFF" />
+            <Text style={styles.infoTitle}>Localisation</Text>
           </View>
-        )}
+          {step.address ? (
+            <>
+              <Text style={styles.infoContent}>{step.address}</Text>
+              {step.latitude && step.longitude && (
+                <Text style={styles.coordinates}>
+                  📍 {step.latitude.toFixed(6)}, {step.longitude.toFixed(6)}
+                </Text>
+              )}
+            </>
+          ) : (
+            <Text style={styles.infoContentEmpty}>Aucune localisation renseignée</Text>
+          )}
+        </View>
 
         {/* Description */}
         <View style={styles.infoCard}>
@@ -312,6 +315,12 @@ const styles = StyleSheet.create({
     fontSize: 14,
     color: '#333',
     lineHeight: 20,
+  },
+  infoContentEmpty: {
+    fontSize: 14,
+    color: '#999',
+    lineHeight: 20,
+    fontStyle: 'italic',
   },
   coordinates: {
     fontSize: 12,

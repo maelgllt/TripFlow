@@ -366,14 +366,14 @@ export class DatabaseService {
           end_date = ?
         WHERE id = ?`,
         [
-          stepData.title ?? null,
+          stepData.title,
           stepData.description ?? null,
           stepData.address ?? null,
           stepData.latitude ?? null,
           stepData.longitude ?? null,
-          stepData.start_date ?? null,
-          stepData.end_date ?? null,
-          stepId ?? null
+          stepData.start_date,
+          stepData.end_date,
+          stepId
         ]
       );
       return result.changes > 0;

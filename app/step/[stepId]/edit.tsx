@@ -1,4 +1,4 @@
-import React, { useState, useCallback, useEffect } from 'react';
+import React, { useState, useCallback, useEffect, useRef } from 'react';
 import {
   View,
   Text,
@@ -10,6 +10,8 @@ import {
   ActivityIndicator,
   KeyboardAvoidingView,
   Platform,
+  useColorScheme,
+  Modal,
 } from 'react-native';
 import { useLocalSearchParams, router, useFocusEffect } from 'expo-router';
 import { Ionicons } from '@expo/vector-icons';
@@ -17,6 +19,12 @@ import DateTimePicker from '@react-native-community/datetimepicker';
 import { DatabaseService } from '@/services/database';
 import { NominatimService } from '@/services/nominatim';
 import { Step } from '@/types/database';
+
+interface NominatimResult {
+  lat: string;
+  lon: string;
+  display_name: string;
+}
 
 export default function EditStep() {
   const { stepId } = useLocalSearchParams();
@@ -26,15 +34,18 @@ export default function EditStep() {
   
   const [title, setTitle] = useState('');
   const [description, setDescription] = useState('');
-  const [address, setAddress] = useState('');
+  const [locationQuery, setLocationQuery] = useState('');
+  const [searchResults, setSearchResults] = useState<NominatimResult[]>([]);
+  const [selectedLocation, setSelectedLocation] = useState<NominatimResult | null>(null);
   const [startDate, setStartDate] = useState(new Date());
   const [endDate, setEndDate] = useState(new Date());
   const [showStartDatePicker, setShowStartDatePicker] = useState(false);
   const [showEndDatePicker, setShowEndDatePicker] = useState(false);
+  const [isSearching, setIsSearching] = useState(false);
   
-  const [latitude, setLatitude] = useState<number | null>(null);
-  const [longitude, setLongitude] = useState<number | null>(null);
-  const [isSearchingLocation, setIsSearchingLocation] = useState(false);
+  const searchTimeoutRef = useRef<NodeJS.Timeout | number | null>(null);
+  const colorScheme = useColorScheme();
+  const isDark = colorScheme === 'dark';
 
   const loadStepData = useCallback(async () => {
     if (!stepId || Array.isArray(stepId)) return;
@@ -46,9 +57,17 @@ export default function EditStep() {
         setStep(stepData);
         setTitle(stepData.title);
         setDescription(stepData.description || '');
-        setAddress(stepData.address || '');
-        setLatitude(stepData.latitude ?? null);
-        setLongitude(stepData.longitude ?? null);
+        setLocationQuery(stepData.address || '');
+        
+        if (stepData.address && stepData.latitude && stepData.longitude) {
+          setSelectedLocation({
+            display_name: stepData.address,
+            lat: stepData.latitude.toString(),
+            lon: stepData.longitude.toString(),
+          });
+        } else {
+          setSelectedLocation(null);
+        }
         
         if (stepData.start_date) {
           setStartDate(new Date(stepData.start_date));
@@ -71,31 +90,46 @@ export default function EditStep() {
     }, [loadStepData])
   );
 
-  const searchLocation = async () => {
-    if (!address.trim()) {
-      Alert.alert('Erreur', 'Veuillez saisir une adresse');
+  const searchLocation = async (query: string) => {
+    if (!query.trim() || query.length < 3) {
+      setSearchResults([]);
       return;
     }
 
     try {
-      setIsSearchingLocation(true);
-      const results = await NominatimService.searchLocation(address);
-      
-      if (results.length > 0) {
-        const location = results[0];
-        setLatitude(Number(location.lat));
-        setLongitude(Number(location.lon));
-        setAddress(location.display_name);
-        Alert.alert('Succès', 'Localisation trouvée et mise à jour');
-      } else {
-        Alert.alert('Aucun résultat', 'Aucune localisation trouvée pour cette adresse');
-      }
+      setIsSearching(true);
+      const results = await NominatimService.searchLocation(query);
+      setSearchResults(results.slice(0, 5)); // limiter à 5 résultats
     } catch (error) {
       console.error('Error searching location:', error);
-      Alert.alert('Erreur', 'Erreur lors de la recherche de localisation');
+      setSearchResults([]);
     } finally {
-      setIsSearchingLocation(false);
+      setIsSearching(false);
     }
+  };
+
+  const debouncedSearchLocation = (query: string) => {
+    if (searchTimeoutRef.current) {
+      clearTimeout(searchTimeoutRef.current);
+    }
+
+    searchTimeoutRef.current = setTimeout(() => {
+      searchLocation(query);
+    }, 500);
+  };
+
+  useEffect(() => {
+    return () => {
+      if (searchTimeoutRef.current) {
+        clearTimeout(searchTimeoutRef.current);
+      }
+    };
+  }, []);
+
+  const selectLocation = (location: NominatimResult) => {
+    setSelectedLocation(location);
+    setLocationQuery(location.display_name);
+    setSearchResults([]);
   };
 
   const validateForm = (): boolean => {
@@ -113,46 +147,70 @@ export default function EditStep() {
   };
 
   const handleSave = async () => {
-    if (!validateForm() || !step) return;
+  try {
+    const success = await DatabaseService.updateStep(stepId, {
+      title: title,
+      description: description,
+      address: selectedLocation?.display_name || null,
+      latitude: selectedLocation ? parseFloat(selectedLocation.lat) : null,
+      longitude: selectedLocation ? parseFloat(selectedLocation.lon) : null,
+      start_date: startDate.toISOString().split('T')[0],
+      end_date: endDate.toISOString().split('T')[0],
+    });
+    
+    if (success) {
+      router.back();
+    }
+  } catch (error) {
+    console.error('Error updating step:', error);
+  }
+};
 
-    try {
-      setIsSaving(true);
-      
-      const success = await DatabaseService.updateStep(step.id, {
-        title: title.trim(),
-        description: description.trim() || null,
-        address: address.trim() || null,
-        latitude,
-        longitude,
-        start_date: startDate.toISOString(),
-        end_date: endDate.toISOString(),
-      });
+  const formatDate = (date: Date | null, defaultText: string) => {
+    if (!date) return defaultText;
+    return date.toLocaleDateString('fr-FR');
+  };
 
-      if (success) {
-        Alert.alert('Succès', 'L\'étape a été mise à jour', [
-          {
-            text: 'OK',
-            onPress: () => router.back(),
-          },
-        ]);
-      } else {
-        Alert.alert('Erreur', 'Impossible de mettre à jour l\'étape');
-      }
-    } catch (error) {
-      console.error('Error updating step:', error);
-      Alert.alert('Erreur', 'Une erreur est survenue lors de la mise à jour');
-    } finally {
-      setIsSaving(false);
+  const onStartDateChange = (event: any, selectedDate?: Date) => {
+    if (Platform.OS === 'android') {
+      setShowStartDatePicker(false);
+    }
+    if (selectedDate) {
+      setStartDate(selectedDate);
     }
   };
 
-  const formatDateForDisplay = (date: Date) => {
-    return date.toLocaleDateString('fr-FR', {
-      weekday: 'long',
-      year: 'numeric',
-      month: 'long',
-      day: 'numeric',
-    });
+  const onEndDateChange = (event: any, selectedDate?: Date) => {
+    if (Platform.OS === 'android') {
+      setShowEndDatePicker(false);
+    }
+    if (selectedDate) {
+      setEndDate(selectedDate);
+    }
+  };
+
+  const confirmStartDate = () => {
+    setShowStartDatePicker(false);
+  };
+
+  const confirmEndDate = () => {
+    setShowEndDatePicker(false);
+  };
+
+  const renderLocationResults = () => {
+    return searchResults.map((item, index) => (
+      <TouchableOpacity
+        key={`${item.lat}-${item.lon}-${index}`}
+        style={[
+          styles.locationResult,
+          index === searchResults.length - 1 && styles.locationResultLast
+        ]}
+        onPress={() => selectLocation(item)}
+      >
+        <Ionicons name="location-outline" size={16} color="#007AFF" />
+        <Text style={styles.locationText}>{item.display_name}</Text>
+      </TouchableOpacity>
+    ));
   };
 
   if (isLoading) {
@@ -223,93 +281,151 @@ export default function EditStep() {
             />
           </View>
 
-          {/* Adresse */}
+          {/* Localisation */}
           <View style={styles.inputGroup}>
-            <Text style={styles.label}>Adresse</Text>
-            <View style={styles.addressInputContainer}>
+            <Text style={styles.label}>Localisation</Text>
+            <View style={styles.searchContainer}>
               <TextInput
-                style={[styles.input, styles.addressInput]}
-                value={address}
-                onChangeText={setAddress}
-                placeholder="Adresse ou lieu"
+                style={styles.input}
+                value={locationQuery}
+                onChangeText={(text) => {
+                  setLocationQuery(text);
+                  debouncedSearchLocation(text);
+                  // Ne réinitialiser selectedLocation que si le texte ne correspond plus
+                  if (selectedLocation && text.trim() !== selectedLocation.display_name) {
+                    setSelectedLocation(null);
+                  }
+                }}
+                placeholder={selectedLocation ? selectedLocation.display_name : "Rechercher une ville ou une adresse..."}
                 placeholderTextColor="#999"
               />
-              <TouchableOpacity
-                style={styles.searchButton}
-                onPress={searchLocation}
-                disabled={isSearchingLocation}
-              >
-                {isSearchingLocation ? (
-                  <ActivityIndicator size="small" color="#fff" />
-                ) : (
-                  <Ionicons name="search" size={20} color="#fff" />
-                )}
-              </TouchableOpacity>
+              {isSearching && (
+                <ActivityIndicator 
+                  size="small" 
+                  color="#007AFF" 
+                  style={styles.searchLoader}
+                />
+              )}
             </View>
-            {latitude && longitude && (
-              <Text style={styles.coordinates}>
-                📍 {latitude.toFixed(6)}, {longitude.toFixed(6)}
-              </Text>
+
+            {/* Résultats de recherche - ne montrer que si pas de localisation sélectionnée ET qu'on a des résultats */}
+            {searchResults.length > 0 && !selectedLocation && locationQuery.length >= 3 && (
+              <View style={styles.searchResults}>
+                {renderLocationResults()}
+              </View>
+            )}
+
+            {/* Localisation sélectionnée */}
+            {selectedLocation && (
+              <View style={styles.selectedLocation}>
+                <Ionicons name="checkmark-circle" size={16} color="#28a745" />
+                <Text style={styles.selectedLocationText}>
+                  Localisation sélectionnée
+                </Text>
+                <TouchableOpacity
+                  style={styles.removeLocationButton}
+                  onPress={() => {
+                    setSelectedLocation(null);
+                    setLocationQuery('');
+                  }}
+                >
+                  <Ionicons name="close-circle" size={16} color="#dc3545" />
+                </TouchableOpacity>
+              </View>
             )}
           </View>
 
           {/* Dates */}
-          <View style={styles.inputGroup}>
-            <Text style={styles.label}>Date de début *</Text>
-            <TouchableOpacity
-              style={styles.dateButton}
-              onPress={() => setShowStartDatePicker(true)}
-            >
-              <Ionicons name="calendar" size={20} color="#007AFF" />
-              <Text style={styles.dateButtonText}>
-                {formatDateForDisplay(startDate)}
-              </Text>
-            </TouchableOpacity>
-          </View>
+          <View style={styles.dateRow}>
+            <View style={[styles.inputGroup, styles.dateInput]}>
+              <Text style={styles.label}>Date de début *</Text>
+              <TouchableOpacity
+                style={styles.dateButton}
+                onPress={() => setShowStartDatePicker(true)}
+              >
+                <Text style={styles.dateButtonText}>
+                  {formatDate(startDate, 'Date début')}
+                </Text>
+                <Ionicons name="calendar" size={20} color="#007AFF" />
+              </TouchableOpacity>
+            </View>
 
-          <View style={styles.inputGroup}>
-            <Text style={styles.label}>Date de fin *</Text>
-            <TouchableOpacity
-              style={styles.dateButton}
-              onPress={() => setShowEndDatePicker(true)}
-            >
-              <Ionicons name="calendar" size={20} color="#007AFF" />
-              <Text style={styles.dateButtonText}>
-                {formatDateForDisplay(endDate)}
-              </Text>
-            </TouchableOpacity>
+            <View style={[styles.inputGroup, styles.dateInput]}>
+              <Text style={styles.label}>Date de fin *</Text>
+              <TouchableOpacity
+                style={styles.dateButton}
+                onPress={() => setShowEndDatePicker(true)}
+              >
+                <Text style={styles.dateButtonText}>
+                  {formatDate(endDate, 'Date fin')}
+                </Text>
+                <Ionicons name="calendar" size={20} color="#007AFF" />
+              </TouchableOpacity>
+            </View>
           </View>
         </View>
-
-        {/* Date Pickers */}
-        {showStartDatePicker && (
-          <DateTimePicker
-            value={startDate}
-            mode="date"
-            display="default"
-            onChange={(event, selectedDate) => {
-              setShowStartDatePicker(false);
-              if (selectedDate) {
-                setStartDate(selectedDate);
-              }
-            }}
-          />
-        )}
-
-        {showEndDatePicker && (
-          <DateTimePicker
-            value={endDate}
-            mode="date"
-            display="default"
-            onChange={(event, selectedDate) => {
-              setShowEndDatePicker(false);
-              if (selectedDate) {
-                setEndDate(selectedDate);
-              }
-            }}
-          />
-        )}
       </ScrollView>
+
+      {/* Date Picker Modals */}
+      <Modal
+        visible={showStartDatePicker}
+        transparent={true}
+        animationType="slide"
+        onRequestClose={() => setShowStartDatePicker(false)}
+      >
+        <View style={styles.modalOverlay}>
+          <View style={[styles.modalContainer, isDark && styles.modalContainerDark]}>
+            <View style={[styles.modalHeader, isDark && styles.modalHeaderDark]}>
+              <TouchableOpacity onPress={() => setShowStartDatePicker(false)}>
+                <Text style={[styles.modalCancelText, isDark && styles.modalCancelTextDark]}>Annuler</Text>
+              </TouchableOpacity>
+              <Text style={[styles.modalTitle, isDark && styles.modalTitleDark]}>Date de début</Text>
+              <TouchableOpacity onPress={confirmStartDate}>
+                <Text style={styles.modalConfirmText}>Confirmer</Text>
+              </TouchableOpacity>
+            </View>
+            <DateTimePicker
+              value={startDate}
+              mode="date"
+              display={Platform.OS === 'ios' ? 'spinner' : 'default'}
+              onChange={onStartDateChange}
+              style={[styles.datePicker, isDark && styles.datePickerDark]}
+              textColor={isDark ? '#FFFFFF' : '#000000'}
+              themeVariant={isDark ? 'dark' : 'light'}
+            />
+          </View>
+        </View>
+      </Modal>
+
+      <Modal
+        visible={showEndDatePicker}
+        transparent={true}
+        animationType="slide"
+        onRequestClose={() => setShowEndDatePicker(false)}
+      >
+        <View style={styles.modalOverlay}>
+          <View style={[styles.modalContainer, isDark && styles.modalContainerDark]}>
+            <View style={[styles.modalHeader, isDark && styles.modalHeaderDark]}>
+              <TouchableOpacity onPress={() => setShowEndDatePicker(false)}>
+                <Text style={[styles.modalCancelText, isDark && styles.modalCancelTextDark]}>Annuler</Text>
+              </TouchableOpacity>
+              <Text style={[styles.modalTitle, isDark && styles.modalTitleDark]}>Date de fin</Text>
+              <TouchableOpacity onPress={confirmEndDate}>
+                <Text style={styles.modalConfirmText}>Confirmer</Text>
+              </TouchableOpacity>
+            </View>
+            <DateTimePicker
+              value={endDate}
+              mode="date"
+              display={Platform.OS === 'ios' ? 'spinner' : 'default'}
+              onChange={onEndDateChange}
+              style={[styles.datePicker, isDark && styles.datePickerDark]}
+              textColor={isDark ? '#FFFFFF' : '#000000'}
+              themeVariant={isDark ? 'dark' : 'light'}
+            />
+          </View>
+        </View>
+      </Modal>
 
       {/* Action Buttons */}
       <View style={styles.actionButtons}>
@@ -434,40 +550,129 @@ const styles = StyleSheet.create({
     height: 100,
     textAlignVertical: 'top',
   },
-  addressInputContainer: {
-    flexDirection: 'row',
-    gap: 10,
+  searchContainer: {
+    position: 'relative',
   },
-  addressInput: {
-    flex: 1,
+  searchLoader: {
+    position: 'absolute',
+    right: 15,
+    top: 15,
   },
-  searchButton: {
-    backgroundColor: '#007AFF',
-    borderRadius: 12,
-    width: 50,
-    justifyContent: 'center',
-    alignItems: 'center',
-  },
-  coordinates: {
-    fontSize: 12,
-    color: '#666',
+  searchResults: {
     marginTop: 5,
-    fontStyle: 'italic',
-  },
-  dateButton: {
     backgroundColor: '#fff',
+    borderRadius: 8,
     borderWidth: 1,
     borderColor: '#ddd',
-    borderRadius: 12,
-    padding: 15,
+  },
+  locationResult: {
     flexDirection: 'row',
     alignItems: 'center',
-    gap: 10,
+    padding: 12,
+    borderBottomWidth: 1,
+    borderBottomColor: '#f0f0f0',
+  },
+  locationResultLast: {
+    borderBottomWidth: 0,
+  },
+  locationText: {
+    fontSize: 14,
+    color: '#333',
+    marginLeft: 8,
+    flex: 1,
+  },
+  selectedLocation: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    marginTop: 8,
+    padding: 10,
+    backgroundColor: '#f8f9fa',
+    borderRadius: 6,
+    justifyContent: 'space-between',
+  },
+  selectedLocationText: {
+    fontSize: 12,
+    color: '#28a745',
+    marginLeft: 6,
+    flex: 1,
+  },
+  removeLocationButton: {
+    marginLeft: 8,
+  },
+  dateRow: {
+    flexDirection: 'row',
+    justifyContent: 'space-between',
+  },
+  dateInput: {
+    flex: 0.48,
+  },
+  dateButton: {
+    flexDirection: 'row',
+    justifyContent: 'space-between',
+    alignItems: 'center',
+    borderWidth: 1,
+    borderColor: '#ddd',
+    borderRadius: 8,
+    padding: 15,
+    backgroundColor: '#fff',
   },
   dateButtonText: {
     fontSize: 16,
     color: '#333',
+  },
+  modalOverlay: {
     flex: 1,
+    backgroundColor: 'rgba(0, 0, 0, 0.5)',
+    justifyContent: 'flex-end',
+  },
+  modalContainer: {
+    backgroundColor: '#fff',
+    borderTopLeftRadius: 20,
+    borderTopRightRadius: 20,
+    paddingBottom: Platform.OS === 'ios' ? 34 : 20,
+  },
+  modalContainerDark: {
+    backgroundColor: '#1C1C1E',
+  },
+  modalHeader: {
+    flexDirection: 'row',
+    justifyContent: 'space-between',
+    alignItems: 'center',
+    paddingHorizontal: 20,
+    paddingVertical: 15,
+    borderBottomWidth: 1,
+    borderBottomColor: '#e0e0e0',
+  },
+  modalHeaderDark: {
+    borderBottomColor: '#48484A',
+  },
+  modalTitle: {
+    fontSize: 18,
+    fontWeight: '600',
+    color: '#333',
+  },
+  modalTitleDark: {
+    color: '#FFFFFF',
+  },
+  modalCancelText: {
+    fontSize: 16,
+    color: '#999',
+  },
+  modalCancelTextDark: {
+    color: '#8E8E93',
+  },
+  modalConfirmText: {
+    fontSize: 16,
+    color: '#007AFF',
+    fontWeight: '600',
+  },
+  datePicker: {
+    backgroundColor: '#fff',
+    alignSelf: 'center',
+    paddingVertical: 20,
+  },
+  datePickerDark: {
+    backgroundColor: '#1C1C1E',
   },
   actionButtons: {
     position: 'absolute',
