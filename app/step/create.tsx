@@ -1,4 +1,4 @@
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, useRef } from 'react';
 import {
   View,
   Text,
@@ -32,6 +32,7 @@ export default function CreateStep() {
   const [showEndDatePicker, setShowEndDatePicker] = useState(false);
   const [isSearching, setIsSearching] = useState(false);
   const [isLoading, setIsLoading] = useState(false);
+  const searchTimeoutRef = useRef<NodeJS.Timeout | number | null>(null);
 
   useEffect(() => {
     loadTrip();
@@ -67,6 +68,32 @@ export default function CreateStep() {
     }
   };
 
+  const debouncedSearchLocation = (query: string) => {
+    if (searchTimeoutRef.current) {
+      clearTimeout(searchTimeoutRef.current);
+    }
+
+    if (query.length < 3) {
+      setSearchResults([]);
+      setIsSearching(false);
+      return;
+    }
+
+    setIsSearching(true);
+
+    searchTimeoutRef.current = setTimeout(() => {
+      searchLocation(query);
+    }, 500);
+  };
+
+  useEffect(() => {
+    return () => {
+      if (searchTimeoutRef.current) {
+        clearTimeout(searchTimeoutRef.current);
+      }
+    };
+  }, []);
+
   const selectLocation = (location: NominatimResult) => {
     setSelectedLocation(location);
     setCityQuery(location.display_name);
@@ -79,7 +106,6 @@ export default function CreateStep() {
     const tripStart = trip.start_date ? new Date(trip.start_date) : null;
     const tripEnd = trip.end_date ? new Date(trip.end_date) : null;
 
-    // Vérifier les limites du voyage
     if (tripStart && start < tripStart) {
       return 'La date de début doit être après le début du voyage';
     }
@@ -92,7 +118,7 @@ export default function CreateStep() {
       return 'La date de début ne peut pas être après la date de fin';
     }
 
-    // Vérifier les conflits de dates
+    // conflits de dates
     try {
       const startDateStr = start.toISOString().split('T')[0];
       const endDateStr = end.toISOString().split('T')[0];
@@ -130,7 +156,6 @@ export default function CreateStep() {
       return;
     }
 
-    // Validation asynchrone des dates
     const dateError = await validateDates(startDate, endDate);
     if (dateError) {
       Alert.alert('Erreur', dateError);
@@ -142,10 +167,9 @@ export default function CreateStep() {
     setIsLoading(true);
 
     try {
-      // Récupérer les étapes existantes pour calculer l'ordre
       const existingSteps = await DatabaseService.getStepsByTripId(parseInt(tripId));
       
-      // Calculer l'ordre basé sur la date de début
+      // calculer l'ordre basé sur la date de début
       let stepOrder = 1;
       for (const step of existingSteps) {
         if (step.start_date && new Date(step.start_date) < startDate) {
@@ -167,7 +191,7 @@ export default function CreateStep() {
 
       await DatabaseService.createStep(newStep);
       
-      // Réorganiser l'ordre de toutes les étapes après création
+      // réorganiser l'ordre des étapes après création
       await reorderSteps(parseInt(tripId));
       
       Alert.alert('Succès', 'Étape créée avec succès', [
@@ -188,12 +212,12 @@ export default function CreateStep() {
     try {
       const steps = await DatabaseService.getStepsByTripId(tripId);
       
-      // Trier les étapes par date de début
+      // trier les étapes par date de début
       const sortedSteps = steps.sort((a, b) => 
         new Date(a.start_date ?? '').getTime() - new Date(b.start_date ?? '').getTime()
       );
       
-      // Mettre à jour l'ordre de chaque étape
+      // mettre à jour l'ordre de chaque étape
       for (let i = 0; i < sortedSteps.length; i++) {
         await DatabaseService.updateStepOrder(sortedSteps[i].id, i + 1);
       }
@@ -260,7 +284,7 @@ export default function CreateStep() {
               onChangeText={(text) => {
                 setCityQuery(text);
                 setSelectedLocation(null);
-                searchLocation(text);
+                debouncedSearchLocation(text);
               }}
               placeholder="Rechercher une ville..."
               placeholderTextColor="#999"
@@ -423,7 +447,6 @@ const styles = StyleSheet.create({
     fontSize: 20,
     fontWeight: 'bold',
     color: '#333',
-    textAlign: 'center',
   },
   form: {
     padding: 20,

@@ -24,6 +24,8 @@ const MAPPING = {
   'map': 'map',
   'person.fill': 'person',
   'person': 'person',
+  'location': 'place',
+  'plus.circle.fill': 'add-circle',
 } as IconMapping;
 
 /**

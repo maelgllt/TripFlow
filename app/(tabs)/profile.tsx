@@ -10,7 +10,7 @@ import { Ionicons } from '@expo/vector-icons';
 import { useAuth } from '@/contexts/AuthContext';
 
 export default function ProfileScreen() {
-  const { user, logout } = useAuth();
+  const { user, logout, deleteAccount } = useAuth();
 
   const handleLogout = () => {
     Alert.alert(
@@ -27,11 +27,55 @@ export default function ProfileScreen() {
           onPress: async () => {
             try {
               await logout();
-              // La redirection sera automatique grâce au useEffect dans _layout.tsx
-              // Pas besoin de router.replace('/(auth)/index');
             } catch (error) {
               console.error('Erreur lors de la déconnexion:', error);
             }
+          },
+        },
+      ]
+    );
+  };
+
+  const handleDeleteAccount = () => {
+    Alert.alert(
+      'Supprimer le compte',
+      'Cette action est irréversible. Toutes vos données seront définitivement supprimées.',
+      [
+        {
+          text: 'Annuler',
+          style: 'cancel',
+        },
+        {
+          text: 'Supprimer',
+          style: 'destructive',
+          onPress: () => {
+            Alert.alert(
+              'Confirmation finale',
+              'Êtes-vous vraiment sûr de vouloir supprimer votre compte ?',
+              [
+                {
+                  text: 'Annuler',
+                  style: 'cancel',
+                },
+                {
+                  text: 'Oui, supprimer',
+                  style: 'destructive',
+                  onPress: async () => {
+                    try {
+                      const success = await deleteAccount();
+                      if (success) {
+                        Alert.alert('Compte supprimé', 'Votre compte a été supprimé avec succès.');
+                      } else {
+                        Alert.alert('Erreur', 'Impossible de supprimer le compte. Veuillez réessayer.');
+                      }
+                    } catch (error) {
+                      console.error('Erreur lors de la suppression:', error);
+                      Alert.alert('Erreur', 'Une erreur est survenue lors de la suppression du compte.');
+                    }
+                  },
+                },
+              ]
+            );
           },
         },
       ]
@@ -71,12 +115,16 @@ export default function ProfileScreen() {
           <Ionicons name="log-out-outline" size={24} color="#fff" />
           <Text style={styles.logoutText}>Se déconnecter</Text>
         </TouchableOpacity>
+
+        <TouchableOpacity style={styles.deleteButton} onPress={handleDeleteAccount}>
+          <Ionicons name="trash-outline" size={24} color="#fff" />
+          <Text style={styles.deleteText}>Supprimer le compte</Text>
+        </TouchableOpacity>
       </View>
     </ScrollView>
   );
 }
 
-// ...existing styles...
 const styles = StyleSheet.create({
   container: {
     flex: 1,
@@ -123,7 +171,7 @@ const styles = StyleSheet.create({
     justifyContent: 'center',
     alignItems: 'center',
     marginTop: 'auto',
-    marginBottom: 20,
+    marginBottom: 10,
     shadowColor: '#000',
     shadowOffset: {
       width: 0,
@@ -134,6 +182,29 @@ const styles = StyleSheet.create({
     elevation: 5,
   },
   logoutText: {
+    color: '#fff',
+    fontSize: 16,
+    fontWeight: '600',
+    marginLeft: 8,
+  },
+  deleteButton: {
+    backgroundColor: '#8B0000',
+    borderRadius: 12,
+    padding: 16,
+    flexDirection: 'row',
+    justifyContent: 'center',
+    alignItems: 'center',
+    marginBottom: 20,
+    shadowColor: '#000',
+    shadowOffset: {
+      width: 0,
+      height: 2,
+    },
+    shadowOpacity: 0.25,
+    shadowRadius: 3.84,
+    elevation: 5,
+  },
+  deleteText: {
     color: '#fff',
     fontSize: 16,
     fontWeight: '600',

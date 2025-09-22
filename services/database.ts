@@ -70,7 +70,6 @@ export const initDatabase = () => {
   `);
 };
 
-// Classe DatabaseService pour les méthodes d'authentification
 export class DatabaseService {
   // Méthodes d'authentification
   static async createUser(email: string, password: string, name: string): Promise<number | null> {
@@ -268,14 +267,118 @@ export class DatabaseService {
   }
 
   static async deleteStep(stepId: number): Promise<boolean> {
+  try {
+    const stepToDelete = await this.getStepById(stepId);
+    if (!stepToDelete) {
+      return false;
+    }
+
+    const deleteResult = db.runSync(
+      'DELETE FROM steps WHERE id = ?',
+      [stepId]
+    );
+
+    if (deleteResult.changes > 0) {
+      await this.reorderStepsAfterDeletion(stepToDelete.trip_id, stepToDelete.order_index);
+      return true;
+    }
+    
+    return false;
+  } catch (error) {
+    console.error('Error deleting step:', error);
+    return false;
+  }
+}
+
+  static async deleteUser(userId: number): Promise<boolean> {
+    try {
+      db.execSync('BEGIN TRANSACTION;');
+      
+      try {
+        // on supprime d'abord tous les voyages de l'utilisateur
+        // grâce à ON DELETE CASCADE, cela supprimera automatiquement :
+        // - steps
+        // - journal_entries  
+        // - checklist_items
+        db.runSync('DELETE FROM trips WHERE user_id = ?;', [userId]);
+        
+        const result = db.runSync('DELETE FROM users WHERE id = ?;', [userId]);
+        
+        db.execSync('COMMIT;');
+        
+        return result.changes > 0;
+        
+      } catch (error) {
+        db.execSync('ROLLBACK;');
+        throw error;
+      }
+      
+    } catch (error) {
+      console.error('Error deleting user:', error);
+      return false;
+    }
+  }
+
+  static async getStepById(stepId: number): Promise<Step | null> {
+    try {
+      const step = db.getFirstSync(
+        'SELECT * FROM steps WHERE id = ?',
+        [stepId]
+      ) as Step | null;
+      return step;
+    } catch (error) {
+      console.error('Error getting step by id:', error);
+      return null;
+    }
+  }
+
+  static async reorderStepsAfterDeletion(tripId: number, deletedOrderIndex: number): Promise<boolean> {
     try {
       const result = db.runSync(
-        'DELETE FROM steps WHERE id = ?',
-        [stepId]
+        'UPDATE steps SET order_index = order_index - 1 WHERE trip_id = ? AND order_index > ?',
+        [tripId, deletedOrderIndex]
       );
       return result.changes > 0;
     } catch (error) {
-      console.error('Error deleting step:', error);
+      console.error('Error reordering steps after deletion:', error);
+      return false;
+    }
+  }
+
+  static async updateStep(stepId: number, stepData: {
+    title: string;
+    description?: string | null;
+    address?: string | null;
+    latitude?: number | null;
+    longitude?: number | null;
+    start_date: string;
+    end_date: string;
+  }): Promise<boolean> {
+    try {
+      const result = db.runSync(
+        `UPDATE steps SET 
+          title = ?, 
+          description = ?, 
+          address = ?, 
+          latitude = ?, 
+          longitude = ?, 
+          start_date = ?, 
+          end_date = ?
+        WHERE id = ?`,
+        [
+          stepData.title ?? null,
+          stepData.description ?? null,
+          stepData.address ?? null,
+          stepData.latitude ?? null,
+          stepData.longitude ?? null,
+          stepData.start_date ?? null,
+          stepData.end_date ?? null,
+          stepId ?? null
+        ]
+      );
+      return result.changes > 0;
+    } catch (error) {
+      console.error('Error updating step:', error);
       return false;
     }
   }

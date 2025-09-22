@@ -73,7 +73,6 @@ export default function HomeScreen() {
     );
   };
 
-  // Couleurs de fond par défaut si pas d'image
   const getDefaultBackgroundColor = (index: number) => {
     const colors = [
       'linear-gradient(135deg, #667eea 0%, #764ba2 100%)',
@@ -87,7 +86,6 @@ export default function HomeScreen() {
 
   const renderTripCard = ({ item, index }: { item: Trip; index: number }) => {
     if (item.cover_image) {
-      // Affichage avec image
       return (
         <TouchableOpacity
           style={styles.tripCard}
@@ -99,29 +97,20 @@ export default function HomeScreen() {
             style={styles.cardBackground}
             imageStyle={styles.cardBackgroundImage}
           >
-            <View style={styles.cardOverlay}>
-              <View style={styles.cardContent}>
-                <View style={styles.cardInfo}>
-                  <Text style={styles.tripTitle}>{item.title}</Text>
-                  <View style={styles.locationContainer}>
-                    <IconSymbol name="location" size={12} color="#666" />
-                    <Text style={styles.locationText}>
-                      {item.description || 'Destination inconnue'}
-                    </Text>
-                  </View>
-                  {item.start_date && item.end_date && (
-                    <Text style={styles.dateText}>
-                      du {formatDate(item.start_date)} au {formatDate(item.end_date)}
-                    </Text>
-                  )}
-                </View>
+            <View style={styles.cardContent}>
+              <View style={styles.cardInfo}>
+                <Text style={styles.tripTitle}>{item.title}</Text>
+                {item.start_date && item.end_date && (
+                  <Text style={styles.dateText}>
+                    Du {formatDate(item.start_date)} au {formatDate(item.end_date)}
+                  </Text>
+                )}
               </View>
             </View>
           </ImageBackground>
         </TouchableOpacity>
       );
     } else {
-      // Affichage sans image (fond coloré)
       return (
         <TouchableOpacity
           style={[styles.tripCard, { backgroundColor: getDefaultBackgroundColor(index) }]}
@@ -131,15 +120,9 @@ export default function HomeScreen() {
           <View style={styles.cardContent}>
             <View style={styles.cardInfo}>
               <Text style={styles.tripTitle}>{item.title}</Text>
-              <View style={styles.locationContainer}>
-                <IconSymbol name="location" size={12} color="#666" />
-                <Text style={styles.locationText}>
-                  {item.description || 'Destination inconnue'}
-                </Text>
-              </View>
               {item.start_date && item.end_date && (
                 <Text style={styles.dateText}>
-                  du {formatDate(item.start_date)} au {formatDate(item.end_date)}
+                  Du {formatDate(item.start_date)} au {formatDate(item.end_date)}
                 </Text>
               )}
             </View>
@@ -271,19 +254,15 @@ const styles = StyleSheet.create({
   cardBackgroundImage: {
     borderRadius: 20,
   },
-  cardOverlay: {
-    backgroundColor: 'rgba(0, 0, 0, 0.3)',
-    borderRadius: 20,
-  },
   cardContent: {
-    padding: 15,
-    justifyContent: 'flex-end',
     flex: 1,
+    justifyContent: 'flex-end',
   },
   cardInfo: {
     backgroundColor: 'rgba(255, 255, 255, 0.95)',
     borderRadius: 15,
     padding: 12,
+    margin: 8,
   },
   tripTitle: {
     fontSize: 16,
@@ -291,20 +270,9 @@ const styles = StyleSheet.create({
     color: '#1a1a1a',
     marginBottom: 4,
   },
-  locationContainer: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    marginBottom: 4,
-  },
-  locationText: {
+  dateText: {
     fontSize: 12,
     color: '#666',
-    marginLeft: 4,
-    flex: 1,
-  },
-  dateText: {
-    fontSize: 10,
-    color: '#999',
     marginTop: 2,
   },
   createButton: {

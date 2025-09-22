@@ -9,6 +9,7 @@ interface AuthContextType {
   login: (email: string, password: string) => Promise<boolean>;
   register: (email: string, password: string, name: string) => Promise<boolean>;
   logout: () => Promise<void>;
+  deleteAccount: () => Promise<boolean>;
   loading: boolean;
 }
 
@@ -18,6 +19,7 @@ const AuthContext = createContext<AuthContextType>({
   login: async () => false,
   register: async () => false,
   logout: async () => {},
+  deleteAccount: async () => false,
   loading: true,
 });
 
@@ -34,7 +36,7 @@ export const AuthProvider = ({ children }: { children: React.ReactNode }) => {
 
   const checkAuthStatus = async () => {
     try {
-      // Utiliser SecureStore au lieu d'AsyncStorage
+      // SecureStore
       const userId = await getRememberedUserId();
       if (userId) {
         const userData = await DatabaseService.getUserById(userId);
@@ -42,7 +44,6 @@ export const AuthProvider = ({ children }: { children: React.ReactNode }) => {
           setIsAuthenticated(true);
           setUser(userData);
         } else {
-          // Si l'utilisateur n'existe plus dans la DB, nettoyer la session
           await forgetUser();
         }
       }
@@ -57,7 +58,7 @@ export const AuthProvider = ({ children }: { children: React.ReactNode }) => {
     try {
       const userData = await DatabaseService.loginUser(email, password);
       if (userData) {
-        // Utiliser SecureStore au lieu d'AsyncStorage
+        // SecureStore
         await rememberUser(userData.id);
         setIsAuthenticated(true);
         setUser(userData);
@@ -76,7 +77,7 @@ export const AuthProvider = ({ children }: { children: React.ReactNode }) => {
       if (userId) {
         const userData = await DatabaseService.getUserById(userId);
         if (userData) {
-          // Utiliser SecureStore au lieu d'AsyncStorage
+          // SecureStore
           await rememberUser(userId);
           setIsAuthenticated(true);
           setUser(userData);
@@ -92,7 +93,7 @@ export const AuthProvider = ({ children }: { children: React.ReactNode }) => {
 
   const logout = async () => {
     try {
-      // Utiliser SecureStore au lieu d'AsyncStorage
+      // SecureStore
       await forgetUser();
       setIsAuthenticated(false);
       setUser(null);
@@ -101,8 +102,38 @@ export const AuthProvider = ({ children }: { children: React.ReactNode }) => {
     }
   };
 
+  const deleteAccount = async (): Promise<boolean> => {
+    try {
+      if (!user) {
+        return false;
+      }
+
+      const success = await DatabaseService.deleteUser(user.id);
+      
+      if (success) {
+        await forgetUser();
+        setIsAuthenticated(false);
+        setUser(null);
+        return true;
+      }
+      
+      return false;
+    } catch (error) {
+      console.error('Error deleting account:', error);
+      return false;
+    }
+  };
+
   return (
-    <AuthContext.Provider value={{ isAuthenticated, user, login, register, logout, loading }}>
+    <AuthContext.Provider value={{ 
+      isAuthenticated, 
+      user, 
+      login, 
+      register, 
+      logout, 
+      deleteAccount, 
+      loading 
+    }}>
       {children}
     </AuthContext.Provider>
   );
