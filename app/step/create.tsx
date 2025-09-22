@@ -10,6 +10,7 @@ import {
   FlatList,
   ActivityIndicator,
   Platform,
+  Modal,
 } from 'react-native';
 import { router, useLocalSearchParams } from 'expo-router';
 import { Ionicons } from '@expo/vector-icons';
@@ -17,6 +18,7 @@ import DateTimePicker from '@react-native-community/datetimepicker';
 import { DatabaseService } from '@/services/database';
 import { NominatimService, NominatimResult } from '@/services/nominatim';
 import { Trip } from '@/types/database';
+import { useColorScheme } from '@/hooks/use-color-scheme.web';
 
 export default function CreateStep() {
   const { tripId } = useLocalSearchParams();
@@ -33,6 +35,9 @@ export default function CreateStep() {
   const [isSearching, setIsSearching] = useState(false);
   const [isLoading, setIsLoading] = useState(false);
   const searchTimeoutRef = useRef<NodeJS.Timeout | number | null>(null);
+
+  const colorScheme = useColorScheme();
+  const isDark = colorScheme === 'dark';
 
   useEffect(() => {
     loadTrip();
@@ -226,21 +231,35 @@ export default function CreateStep() {
     }
   };
 
-  const formatDate = (date: Date | null) => {
-    if (!date) return 'Sélectionner une date';
+  const formatDate = (date: Date | null, defaultText: string) => {
+    if (!date) return defaultText;
     return date.toLocaleDateString('fr-FR');
   };
 
   const onStartDateChange = (event: any, selectedDate?: Date) => {
-    const currentDate = selectedDate || startDate;
-    setShowStartDatePicker(Platform.OS === 'ios');
-    setStartDate(currentDate);
+      if (Platform.OS === 'android') {
+        setShowStartDatePicker(false);
+      }
+      if (selectedDate) {
+        setStartDate(selectedDate);
+      }
+    };
+  
+  const onEndDateChange = (event: any, selectedDate?: Date) => {
+    if (Platform.OS === 'android') {
+      setShowEndDatePicker(false);
+    }
+    if (selectedDate) {
+      setEndDate(selectedDate);
+    }
   };
 
-  const onEndDateChange = (event: any, selectedDate?: Date) => {
-    const currentDate = selectedDate || endDate;
-    setShowEndDatePicker(Platform.OS === 'ios');
-    setEndDate(currentDate);
+  const confirmStartDate = () => {
+    setShowStartDatePicker(false);
+  };
+
+  const confirmEndDate = () => {
+    setShowEndDatePicker(false);
   };
 
   const renderLocationResult = ({ item }: { item: NominatimResult }) => (
@@ -357,7 +376,7 @@ export default function CreateStep() {
               onPress={() => setShowStartDatePicker(true)}
             >
               <Text style={styles.dateButtonText}>
-                {formatDate(startDate)}
+                {formatDate(startDate, 'Date début')}
               </Text>
               <Ionicons name="calendar" size={20} color="#007AFF" />
             </TouchableOpacity>
@@ -370,7 +389,7 @@ export default function CreateStep() {
               onPress={() => setShowEndDatePicker(true)}
             >
               <Text style={styles.dateButtonText}>
-                {formatDate(endDate)}
+                {formatDate(endDate, 'Date fin')}
               </Text>
               <Ionicons name="calendar" size={20} color="#007AFF" />
             </TouchableOpacity>
@@ -381,33 +400,10 @@ export default function CreateStep() {
         {trip && (trip.start_date || trip.end_date) && (
           <View style={styles.dateConstraint}>
             <Text style={styles.dateConstraintText}>
-              📅 Dates du voyage: {trip.start_date && formatDate(new Date(trip.start_date))} 
-              {trip.end_date && ` - ${formatDate(new Date(trip.end_date))}`}
+              📅 Dates du voyage: {trip.start_date && formatDate(new Date(trip.start_date), 'Date début')} 
+              {trip.end_date && ` - ${formatDate(new Date(trip.end_date), 'Date fin')}`}
             </Text>
           </View>
-        )}
-
-        {/* Date Pickers */}
-        {showStartDatePicker && (
-          <DateTimePicker
-            testID="startDatePicker"
-            value={startDate || new Date()}
-            mode="date"
-            is24Hour={true}
-            display="default"
-            onChange={onStartDateChange}
-          />
-        )}
-
-        {showEndDatePicker && (
-          <DateTimePicker
-            testID="endDatePicker"
-            value={endDate || new Date()}
-            mode="date"
-            is24Hour={true}
-            display="default"
-            onChange={onEndDateChange}
-          />
         )}
 
         {/* Bouton de création */}
@@ -421,6 +417,67 @@ export default function CreateStep() {
           </Text>
         </TouchableOpacity>
       </View>
+
+      {/* Date Picker Modals */}
+      <Modal
+        visible={showStartDatePicker}
+        transparent={true}
+        animationType="slide"
+        onRequestClose={() => setShowStartDatePicker(false)}
+      >
+        <View style={styles.modalOverlay}>
+          <View style={[styles.modalContainer, isDark && styles.modalContainerDark]}>
+            <View style={[styles.modalHeader, isDark && styles.modalHeaderDark]}>
+              <TouchableOpacity onPress={() => setShowStartDatePicker(false)}>
+                <Text style={[styles.modalCancelText, isDark && styles.modalCancelTextDark]}>Annuler</Text>
+              </TouchableOpacity>
+              <Text style={[styles.modalTitle, isDark && styles.modalTitleDark]}>Date de début</Text>
+              <TouchableOpacity onPress={confirmStartDate}>
+                <Text style={styles.modalConfirmText}>Confirmer</Text>
+              </TouchableOpacity>
+            </View>
+            <DateTimePicker
+              value={startDate || new Date()}
+              mode="date"
+              display={Platform.OS === 'ios' ? 'spinner' : 'default'}
+              onChange={onStartDateChange}
+              style={[styles.datePicker, isDark && styles.datePickerDark]}
+              textColor={isDark ? '#FFFFFF' : '#000000'}
+              themeVariant={isDark ? 'dark' : 'light'}
+            />
+          </View>
+        </View>
+      </Modal>
+
+      <Modal
+        visible={showEndDatePicker}
+        transparent={true}
+        animationType="slide"
+        onRequestClose={() => setShowEndDatePicker(false)}
+      >
+        <View style={styles.modalOverlay}>
+          <View style={[styles.modalContainer, isDark && styles.modalContainerDark]}>
+            <View style={[styles.modalHeader, isDark && styles.modalHeaderDark]}>
+              <TouchableOpacity onPress={() => setShowEndDatePicker(false)}>
+                <Text style={[styles.modalCancelText, isDark && styles.modalCancelTextDark]}>Annuler</Text>
+              </TouchableOpacity>
+              <Text style={[styles.modalTitle, isDark && styles.modalTitleDark]}>Date de fin</Text>
+              <TouchableOpacity onPress={confirmEndDate}>
+                <Text style={styles.modalConfirmText}>Confirmer</Text>
+              </TouchableOpacity>
+            </View>
+            <DateTimePicker
+              value={endDate || new Date()}
+              mode="date"
+              display={Platform.OS === 'ios' ? 'spinner' : 'default'}
+              onChange={onEndDateChange}
+              style={[styles.datePicker, isDark && styles.datePickerDark]}
+              textColor={isDark ? '#FFFFFF' : '#000000'}
+              themeVariant={isDark ? 'dark' : 'light'}
+            />
+          </View>
+        </View>
+      </Modal>
     </ScrollView>
   );
 }
@@ -562,5 +619,59 @@ const styles = StyleSheet.create({
     color: '#fff',
     fontSize: 18,
     fontWeight: 'bold',
+  },
+  modalOverlay: {
+    flex: 1,
+    backgroundColor: 'rgba(0, 0, 0, 0.5)',
+    justifyContent: 'flex-end',
+  },
+  modalContainer: {
+    backgroundColor: '#fff',
+    borderTopLeftRadius: 20,
+    borderTopRightRadius: 20,
+    paddingBottom: Platform.OS === 'ios' ? 34 : 20,
+  },
+  modalContainerDark: {
+    backgroundColor: '#1C1C1E',
+  },
+  modalHeader: {
+    flexDirection: 'row',
+    justifyContent: 'space-between',
+    alignItems: 'center',
+    paddingHorizontal: 20,
+    paddingVertical: 15,
+    borderBottomWidth: 1,
+    borderBottomColor: '#e0e0e0',
+  },
+  modalHeaderDark: {
+    borderBottomColor: '#48484A',
+  },
+  modalTitle: {
+    fontSize: 18,
+    fontWeight: '600',
+    color: '#333',
+  },
+  modalTitleDark: {
+    color: '#FFFFFF',
+  },
+  modalCancelText: {
+    fontSize: 16,
+    color: '#999',
+  },
+  modalCancelTextDark: {
+    color: '#8E8E93',
+  },
+  modalConfirmText: {
+    fontSize: 16,
+    color: '#007AFF',
+    fontWeight: '600',
+  },
+  datePicker: {
+    backgroundColor: '#fff',
+    alignSelf: 'center',
+    paddingVertical: 20,
+  },
+  datePickerDark: {
+    backgroundColor: '#1C1C1E',
   },
 });
