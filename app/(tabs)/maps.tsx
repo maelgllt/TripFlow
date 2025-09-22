@@ -244,7 +244,9 @@ export default function MapsScreen() {
       {/* Sélecteur de voyage */}
       <View style={styles.tripSelector}>
         <ScrollView horizontal showsHorizontalScrollIndicator={false}>
-          {trips.map(trip => (
+          {trips
+          .filter(trip => trip.steps.some(s => s.latitude && s.longitude))
+          .map(trip => (
             <TouchableOpacity
               key={trip.id}
               style={[
