@@ -162,7 +162,7 @@ export default function CreateTripScreen() {
             style={styles.input}
             value={title}
             onChangeText={setTitle}
-            placeholder="Ex: Voyage en Italie"
+            placeholder="Ex: Voyage en Espagne"
             placeholderTextColor="#999"
           />
         </View>

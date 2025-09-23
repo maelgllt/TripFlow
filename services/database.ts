@@ -46,16 +46,17 @@ export const initDatabase = () => {
       FOREIGN KEY (trip_id) REFERENCES trips (id) ON DELETE CASCADE
     );
     
-    -- Table journal (un journal par voyage)
+    -- Table journal (un journal par étape)
     CREATE TABLE IF NOT EXISTS journal_entries (
       id INTEGER PRIMARY KEY AUTOINCREMENT,
-      trip_id INTEGER NOT NULL,
+      step_id INTEGER NOT NULL,
       type TEXT NOT NULL,
       content TEXT NOT NULL,
+      images TEXT,
       file_path TEXT,
       entry_date TEXT,
       created_at DATETIME DEFAULT CURRENT_TIMESTAMP,
-      FOREIGN KEY (trip_id) REFERENCES trips (id) ON DELETE CASCADE
+      FOREIGN KEY (step_id) REFERENCES steps (id) ON DELETE CASCADE
     );
     
     -- Table checklist (sans catégorie)
@@ -380,6 +381,57 @@ export class DatabaseService {
     } catch (error) {
       console.error('Error updating step:', error);
       return false;
+    }
+  }
+
+  static async getJournalEntryByStepId(stepId: number) {
+    const entry = db.getFirstSync(
+      'SELECT * FROM journal_entries WHERE step_id = ?',
+      [stepId]
+    );
+    return entry;
+  }
+
+  static async saveJournalEntryForStep(stepId: number, data: {
+    type: 'text' | 'photo' | 'audio',
+    content: string,
+    images?: string[],
+    file_path?: string,
+    entry_date?: string
+  }): Promise<number | boolean> {
+    const existing = await this.getJournalEntryByStepId(stepId);
+    const imagesJson = data.images ? JSON.stringify(data.images) : null;
+    if (existing) {
+      // Update
+      const result = db.runSync(
+        `UPDATE journal_entries SET 
+          type = ?, content = ?, images = ?, file_path = ?, entry_date = ?, created_at = datetime("now")
+        WHERE step_id = ?`,
+        [
+          data.type,
+          data.content,
+          imagesJson,
+          data.file_path ?? null,
+          data.entry_date ?? null,
+          stepId
+        ]
+      );
+      return result.changes > 0;
+    } else {
+      // Create
+      const result = db.runSync(
+        `INSERT INTO journal_entries (step_id, type, content, images, file_path, entry_date, created_at)
+        VALUES (?, ?, ?, ?, ?, ?, datetime("now"))`,
+        [
+          stepId,
+          data.type,
+          data.content,
+          imagesJson,
+          data.file_path ?? null,
+          data.entry_date ?? null
+        ]
+      );
+      return result.lastInsertRowId;
     }
   }
 }

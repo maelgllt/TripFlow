@@ -34,9 +34,10 @@ export interface Step {
 
 export interface JournalEntry {
   id: number;
-  trip_id: number;
+  step_id: number;
   type: 'text' | 'photo' | 'audio';
   content: string;
+  images?: string[];
   file_path?: string;
   entry_date?: string;
   created_at: string;

@@ -209,6 +209,14 @@ export default function StepDetails() {
         >
           <Ionicons name="trash" size={24} color="#fff" />
         </TouchableOpacity>
+
+        {/* Bouton pour créer le journal de bord */}
+        <TouchableOpacity
+          style={styles.journalButton}
+          onPress={() => router.push(`/journal/details?stepId=${step.id}`)}
+        >
+          <Ionicons name="book-outline" size={24} color="#fff" />
+        </TouchableOpacity>
       </View>
     </ScrollView>
   );
@@ -393,4 +401,20 @@ const styles = StyleSheet.create({
     shadowRadius: 8,
     elevation: 5,
   },
+  journalButton: {
+  backgroundColor: '#34C759',
+  width: 56,
+  height: 56,
+  borderRadius: 28,
+  justifyContent: 'center',
+  alignItems: 'center',
+  shadowColor: '#34C759',
+  shadowOffset: {
+    width: 0,
+    height: 4,
+  },
+  shadowOpacity: 0.3,
+  shadowRadius: 8,
+  elevation: 5,
+},
 });
