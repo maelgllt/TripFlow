@@ -309,6 +309,15 @@ export default function TripDetails() {
       <Ionicons name="add" size={24} color="#fff" />
       <Text style={styles.addStepButtonText}>Ajouter une étape</Text>
     </TouchableOpacity>
+
+    {/* Bouton checklist */}
+    <TouchableOpacity
+      style={styles.addChecklistButton}
+      onPress={() => router.push(`/checklist/create?tripId=${tripId}`)}
+    >
+      <Ionicons name="list" size={24} color="#fff" />
+      <Text style={styles.addChecklistButtonText}>Ajouter une checklist</Text>
+    </TouchableOpacity>
   </View>
 );
 }
@@ -545,6 +554,30 @@ const styles = StyleSheet.create({
     elevation: 5,
   },
   addStepButtonText: {
+    color: '#fff',
+    fontSize: 16,
+    fontWeight: '600',
+    marginLeft: 8,
+  },
+  addChecklistButton: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'center',
+    backgroundColor: '#13aa06ff',
+    marginHorizontal: 20,
+    marginBottom: 20,
+    padding: 16,
+    borderRadius: 12,
+    shadowColor: '#13aa06ff',
+    shadowOffset: {
+      width: 0,
+      height: 4,
+    },
+    shadowOpacity: 0.3,
+    shadowRadius: 8,
+    elevation: 5,
+  },
+  addChecklistButtonText: {
     color: '#fff',
     fontSize: 16,
     fontWeight: '600',

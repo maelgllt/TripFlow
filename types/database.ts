@@ -43,9 +43,16 @@ export interface JournalEntry {
   created_at: string;
 }
 
-export interface ChecklistItem {
+export interface Checklist {
   id: number;
   trip_id: number;
+  title: string;
+  created_at: string;
+}
+
+export interface ChecklistItem {
+  id: number;
+  checklist_id: number;
   title: string;
   is_checked: boolean;
   created_at: string;

@@ -59,14 +59,23 @@ export const initDatabase = () => {
       FOREIGN KEY (step_id) REFERENCES steps (id) ON DELETE CASCADE
     );
     
-    -- Table checklist (sans catégorie)
-    CREATE TABLE IF NOT EXISTS checklist_items (
+    -- Table checklists (une checklist par voyage, plusieurs checklists par voyage possible)
+    CREATE TABLE IF NOT EXISTS checklists (
       id INTEGER PRIMARY KEY AUTOINCREMENT,
       trip_id INTEGER NOT NULL,
       title TEXT NOT NULL,
-      is_checked BOOLEAN DEFAULT 0,
       created_at DATETIME DEFAULT CURRENT_TIMESTAMP,
       FOREIGN KEY (trip_id) REFERENCES trips (id) ON DELETE CASCADE
+    );
+    
+    -- Table checklist_items (si elle n'existe pas encore, on la crée correctement)
+    CREATE TABLE IF NOT EXISTS checklist_items (
+      id INTEGER PRIMARY KEY AUTOINCREMENT,
+      checklist_id INTEGER NOT NULL,
+      title TEXT NOT NULL,
+      is_checked INTEGER DEFAULT 0,
+      created_at DATETIME DEFAULT CURRENT_TIMESTAMP,
+      FOREIGN KEY (checklist_id) REFERENCES checklists (id) ON DELETE CASCADE
     );
   `);
 };
@@ -432,6 +441,97 @@ export class DatabaseService {
         ]
       );
       return result.lastInsertRowId;
+    }
+  }
+
+  static async createChecklist(tripId: number, title: string): Promise<number | null> {
+    try {
+      const result = db.runSync(
+        'INSERT INTO checklists (trip_id, title, created_at) VALUES (?, ?, datetime("now"))',
+        [tripId, title]
+      );
+      return result.lastInsertRowId;
+    } catch (error) {
+      console.error('Error creating checklist:', error);
+      throw error;
+    }
+  }
+
+  static async getChecklistsByTripId(tripId: number) {
+    try {
+      const lists = db.getAllSync(
+        'SELECT * FROM checklists WHERE trip_id = ? ORDER BY created_at DESC',
+        [tripId]
+      );
+      return lists;
+    } catch (error) {
+      console.error('Error getting checklists:', error);
+      return [];
+    }
+  }
+
+  static async deleteChecklist(checklistId: number): Promise<boolean> {
+    try {
+      const result = db.runSync(
+        'DELETE FROM checklists WHERE id = ?',
+        [checklistId]
+      );
+      return result.changes > 0;
+    } catch (error) {
+      console.error('Error deleting checklist:', error);
+      return false;
+    }
+  }
+
+  static async createChecklistItem(checklistId: number, title: string): Promise<number | null> {
+    try {
+      const result = db.runSync(
+        'INSERT INTO checklist_items (checklist_id, title, is_checked, created_at) VALUES (?, ?, 0, datetime("now"))',
+        [checklistId, title]
+      );
+      return result.lastInsertRowId;
+    } catch (error) {
+      console.error('Error creating checklist item:', error);
+      throw error;
+    }
+  }
+
+  static async getChecklistItems(checklistId: number) {
+    try {
+      const items = db.getAllSync(
+        'SELECT * FROM checklist_items WHERE checklist_id = ? ORDER BY created_at ASC',
+        [checklistId]
+      );
+      return items;
+    } catch (error) {
+      console.error('Error getting checklist items:', error);
+      return [];
+    }
+  }
+
+  static async setChecklistItemChecked(itemId: number, isChecked: boolean): Promise<boolean> {
+    try {
+      const result = db.runSync(
+        'UPDATE checklist_items SET is_checked = ? WHERE id = ?',
+        [isChecked ? 1 : 0, itemId]
+      );
+      return result.changes > 0;
+    } catch (error) {
+      console.error('Error updating checklist item:', error);
+      return false;
+    }
+  }
+
+  static async deleteChecklistItem(itemId: number): Promise<boolean> {
+    try {
+      const result = db.runSync(
+        'DELETE FROM checklist_items WHERE id = ?',
+        [itemId]
+      );
+      return result.changes > 0;
+    } catch (error) {
+      console.error('Error deleting checklist item:', error);
+      return false;
     }
   }
 }
