@@ -89,7 +89,7 @@ export default function JournalDetails() {
   const addTextBlock = () => setBlocks(prev => [...prev, { id: String(Date.now()) + Math.random(), type: 'text', text: '' }]);
   const addImageBlocks = async () => {
     const res = await ImagePicker.launchImageLibraryAsync({
-      mediaTypes: ImagePicker.MediaTypeOptions.Images,
+      mediaTypes: ['images'],
       allowsMultipleSelection: true,
     });
     if (res.canceled) return;
