@@ -1,20 +1,12 @@
 import React, { useState, useEffect } from 'react';
 import { View, Text, TextInput, TouchableOpacity, Image, ScrollView } from 'react-native';
 import * as ImagePicker from 'expo-image-picker';
-import { useLocalSearchParams, useRouter } from 'expo-router';
+import { useRouter } from 'expo-router';
 
 export default function EditJournalEntry() {
-  const { entryId } = useLocalSearchParams();
   const router = useRouter();
   const [text, setText] = useState('');
   const [images, setImages] = useState<string[]>([]);
-
-  useEffect(() => {
-    // Charge l'entrée existante
-    // const entry = await DatabaseService.getJournalEntry(entryId);
-    // setText(entry.content);
-    // setImages(entry.images || []);
-  }, [entryId]);
 
   const pickImages = async () => {
     const result = await ImagePicker.launchImageLibraryAsync({
@@ -27,7 +19,6 @@ export default function EditJournalEntry() {
   };
 
   const handleSave = async () => {
-    // DatabaseService.updateJournalEntry(entryId, { content: text, images })
     router.back();
   };
 

@@ -28,11 +28,9 @@ export default function TripDetails() {
     try {
       setIsLoading(true);
       
-      // Charger les données du voyage
       const tripData = await DatabaseService.getTripById(parseInt(tripId));
       setTrip(tripData);
 
-      // Charger les étapes
       const stepsData = await DatabaseService.getStepsByTripId(parseInt(tripId));
       setSteps(stepsData);
     } catch (error) {
@@ -59,12 +57,11 @@ export default function TripDetails() {
     });
   };
 
-  // Calculer la région de la carte pour englober toutes les étapes
   const getMapRegion = () => {
     const stepsWithCoords = steps.filter(step => step.latitude && step.longitude);
     
     if (stepsWithCoords.length === 0) {
-      // Région par défaut (France)
+      // région par défaut (France)
       return {
         latitude: 46.603354,
         longitude: 1.888334,
@@ -74,7 +71,7 @@ export default function TripDetails() {
     }
 
     if (stepsWithCoords.length === 1) {
-      // Une seule étape, zoom sur cette étape
+      // une seule étape, zoom sur cette étape
       return {
         latitude: stepsWithCoords[0].latitude!,
         longitude: stepsWithCoords[0].longitude!,
@@ -83,7 +80,7 @@ export default function TripDetails() {
       };
     }
 
-    // Calculer les limites pour englober toutes les étapes
+    // calculer les limites pour englober toutes les étapes
     const lats = stepsWithCoords.map(step => step.latitude!);
     const lngs = stepsWithCoords.map(step => step.longitude!);
     
@@ -95,7 +92,7 @@ export default function TripDetails() {
     const centerLat = (minLat + maxLat) / 2;
     const centerLng = (minLng + maxLng) / 2;
     
-    const deltaLat = (maxLat - minLat) * 1.3; // Marge de 30%
+    const deltaLat = (maxLat - minLat) * 1.3;
     const deltaLng = (maxLng - minLng) * 1.3;
 
     return {

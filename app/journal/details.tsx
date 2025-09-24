@@ -20,19 +20,16 @@ export default function JournalDetails() {
   const router = useRouter();
   const [blocks, setBlocks] = useState<Block[]>([]);
   const scheme = useColorScheme() ?? 'light';
-  const borderColor = scheme === 'dark' ? '#4b5563' : '#e2e8f0'; // visible in both themes
+  const borderColor = scheme === 'dark' ? '#4b5563' : '#e2e8f0';
 
   useEffect(() => {
     const load = async () => {
-      // typer correctement l'entrée pour éviter les erreurs TS
       const entry = await DatabaseService.getJournalEntryByStepId(Number(stepId)) as JournalEntry | null;
       if (!entry) {
-        // démarrer avec un bloc texte vide
         setBlocks([{ id: String(Date.now()), type: 'text', text: '' }]);
         return;
       }
 
-      // si content est JSON avec blocks => restaurer
       try {
         const parsed = JSON.parse(entry.content);
         if (parsed && Array.isArray(parsed.blocks)) {
@@ -40,10 +37,8 @@ export default function JournalDetails() {
           return;
         }
       } catch {
-        // non JSON => traiter comme ancien texte
       }
 
-      // ancien format : contenu texte + images en colonne images (sans audio)
       try {
         const oldImages =
           entry.images

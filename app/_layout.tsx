@@ -25,10 +25,8 @@ function RootLayoutNav() {
   useEffect(() => {
     if (!loading) {
       if (isAuthenticated) {
-        // Rediriger vers l'app principale si connecté
         router.replace('/(tabs)');
       } else {
-        // Rediriger vers l'authentification si pas connecté
         router.replace('/(auth)');
       }
     }

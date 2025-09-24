@@ -123,7 +123,6 @@ export default function CreateStep() {
       return 'La date de début ne peut pas être après la date de fin';
     }
 
-    // conflits de dates
     try {
       const startDateStr = start.toISOString().split('T')[0];
       const endDateStr = end.toISOString().split('T')[0];
@@ -174,7 +173,6 @@ export default function CreateStep() {
     try {
       const existingSteps = await DatabaseService.getStepsByTripId(parseInt(tripId));
       
-      // calculer l'ordre basé sur la date de début
       let stepOrder = 1;
       for (const step of existingSteps) {
         if (step.start_date && new Date(step.start_date) < startDate) {
@@ -209,24 +207,6 @@ export default function CreateStep() {
       Alert.alert('Erreur', 'Impossible de créer l\'étape');
     } finally {
       setIsLoading(false);
-    }
-  };
-
-  const reorderSteps = async (tripId: number) => {
-    try {
-      const steps = await DatabaseService.getStepsByTripId(tripId);
-      
-      // trier les étapes par date de début
-      const sortedSteps = steps.sort((a, b) => 
-        new Date(a.start_date ?? '').getTime() - new Date(b.start_date ?? '').getTime()
-      );
-      
-      // mettre à jour l'ordre de chaque étape
-      for (let i = 0; i < sortedSteps.length; i++) {
-        await DatabaseService.updateStepOrder(sortedSteps[i].id, i + 1);
-      }
-    } catch (error) {
-      console.error('Error reordering steps:', error);
     }
   };
 

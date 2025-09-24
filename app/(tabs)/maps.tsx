@@ -50,7 +50,6 @@ export default function MapsScreen() {
 
       setTrips(tripsWithSteps);
       
-      // Sélectionner le premier voyage par défaut s'il y en a un
       if (tripsWithSteps.length > 0 && !selectedTripId) {
         setSelectedTripId(tripsWithSteps[0].id);
         calculateMapRegion(tripsWithSteps[0].steps);
@@ -123,7 +122,7 @@ export default function MapsScreen() {
 
   const selectTrip = (tripId: number) => {
     setSelectedTripId(tripId);
-    setLastClickedStepId(null); // Reset du step sélectionné quand on change de voyage
+    setLastClickedStepId(null);
     const trip = trips.find(t => t.id === tripId);
     if (trip) {
       calculateMapRegion(trip.steps);
@@ -131,7 +130,6 @@ export default function MapsScreen() {
   };
 
   const onMarkerPress = (step: Step, tripTitle: string, stepIndex: number) => {
-    // Si c'est le même step que le dernier cliqué, afficher l'alert
     if (lastClickedStepId === step.id) {
       Alert.alert(
         `${tripTitle} - Étape ${stepIndex + 1}`,
@@ -151,9 +149,8 @@ export default function MapsScreen() {
           },
         ]
       );
-      setLastClickedStepId(null); // Reset après avoir affiché l'alert
+      setLastClickedStepId(null);
     } else {
-      // Premier clic : zoomer sur l'étape
       setLastClickedStepId(step.id);
       zoomToStep(step);
     }
@@ -168,7 +165,6 @@ export default function MapsScreen() {
         longitudeDelta: 0.01,
       };
       setMapRegion(region);
-      // Utiliser animateToRegion pour une animation fluide
       mapRef.current?.animateToRegion(region, 800);
     }
   };
@@ -285,7 +281,7 @@ export default function MapsScreen() {
             showsUserLocation={true}
             showsMyLocationButton={true}
             mapType="standard"
-            onPress={() => setLastClickedStepId(null)} // Reset du step sélectionné quand on clique sur la carte
+            onPress={() => setLastClickedStepId(null)}
           >
             {/* Polyline pour l'itinéraire */}
             {stepsWithCoords.length > 1 && (
@@ -408,12 +404,6 @@ export default function MapsScreen() {
     </View>
   );
 }
-
-// Fonction utilitaire pour générer des couleurs différentes par voyage
-const getColorForTrip = (tripId: number): string => {
-  const colors = ['#007AFF', '#FF6B6B', '#4ECDC4', '#45B7D1', '#96CEB4', '#FFEAA7', '#DDA0DD'];
-  return colors[tripId % colors.length];
-};
 
 const styles = StyleSheet.create({
   container: {

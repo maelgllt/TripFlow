@@ -99,7 +99,7 @@ export default function EditStep() {
     try {
       setIsSearching(true);
       const results = await NominatimService.searchLocation(query);
-      setSearchResults(results.slice(0, 5)); // limiter à 5 résultats
+      setSearchResults(results.slice(0, 5)); // limite à 5 résultats
     } catch (error) {
       console.error('Error searching location:', error);
       setSearchResults([]);
@@ -308,7 +308,6 @@ export default function EditStep() {
                 onChangeText={(text) => {
                   setLocationQuery(text);
                   debouncedSearchLocation(text);
-                  // Ne réinitialiser selectedLocation que si le texte ne correspond plus
                   if (selectedLocation && text.trim() !== selectedLocation.display_name) {
                     setSelectedLocation(null);
                   }

@@ -35,7 +35,6 @@ export class NominatimService {
 
       const data = await response.json();
       
-      // Vérifier que data est un tableau
       if (!Array.isArray(data)) {
         console.error('Nominatim: Response is not an array:', data);
         return [];
@@ -45,13 +44,12 @@ export class NominatimService {
     } catch (error) {
       console.error('Nominatim search error details:', error);
       
-      // Propager l'erreur originale plutôt que de la masquer
       if (error instanceof TypeError && error.message.includes('Network request failed')) {
         throw new Error('Pas de connexion internet');
       }
       
       if (error instanceof Error) {
-        throw error; // Propager l'erreur originale
+        throw error;
       }
       
       throw new Error('Erreur inconnue lors de la recherche');

@@ -82,10 +82,9 @@ export const initDatabase = () => {
 };
 
 export class DatabaseService {
-  // Méthodes d'authentification
+
   static async createUser(email: string, password: string, name: string): Promise<number | null> {
     try {
-      // Vérifier si l'email existe déjà
       const existingUser = db.getFirstSync(
         'SELECT id FROM users WHERE email = ?',
         [email]
@@ -370,7 +369,6 @@ export class DatabaseService {
         return aTime - bTime;
       });
 
-      // Mettre à jour order_index de façon séquentielle (1-based)
       for (let i = 0; i < sorted.length; i++) {
         db.runSync('UPDATE steps SET order_index = ? WHERE id = ?', [i + 1, sorted[i].id]);
       }
@@ -391,7 +389,6 @@ export class DatabaseService {
     end_date: string;
   }): Promise<boolean> {
     try {
-      // récupérer l'étape avant la mise à jour pour connaître trip_id
       const existingStep = await this.getStepById(stepId);
 
       const result = db.runSync(
@@ -418,7 +415,6 @@ export class DatabaseService {
 
       const updated = result.changes > 0;
 
-      // si la mise à jour a réussi et qu'on connaît le trip_id, réordonner toutes les étapes du voyage
       if (updated && existingStep) {
         await this.reorderSteps(existingStep.trip_id);
       }
@@ -448,7 +444,6 @@ export class DatabaseService {
     const existing = await this.getJournalEntryByStepId(stepId);
     const imagesJson = data.images ? JSON.stringify(data.images) : null;
     if (existing) {
-      // Update
       const result = db.runSync(
         `UPDATE journal_entries SET 
           type = ?, content = ?, images = ?, file_path = ?, entry_date = ?, created_at = datetime("now")
@@ -464,7 +459,6 @@ export class DatabaseService {
       );
       return result.changes > 0;
     } else {
-      // Create
       const result = db.runSync(
         `INSERT INTO journal_entries (step_id, type, content, images, file_path, entry_date, created_at)
         VALUES (?, ?, ?, ?, ?, ?, datetime("now"))`,
