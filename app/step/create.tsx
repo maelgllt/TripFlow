@@ -196,8 +196,7 @@ export default function CreateStep() {
 
       await DatabaseService.createStep(newStep);
       
-      // réorganiser l'ordre des étapes après création
-      await reorderSteps(parseInt(tripId));
+      await DatabaseService.reorderSteps(parseInt(tripId));
       
       Alert.alert('Succès', 'Étape créée avec succès', [
         {

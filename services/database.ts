@@ -278,28 +278,28 @@ export class DatabaseService {
   }
 
   static async deleteStep(stepId: number): Promise<boolean> {
-  try {
-    const stepToDelete = await this.getStepById(stepId);
-    if (!stepToDelete) {
+    try {
+      const stepToDelete = await this.getStepById(stepId);
+      if (!stepToDelete) {
+        return false;
+      }
+
+      const deleteResult = db.runSync(
+        'DELETE FROM steps WHERE id = ?',
+        [stepId]
+      );
+
+      if (deleteResult.changes > 0) {
+        await this.reorderStepsAfterDeletion(stepToDelete.trip_id, stepToDelete.order_index);
+        return true;
+      }
+      
+      return false;
+    } catch (error) {
+      console.error('Error deleting step:', error);
       return false;
     }
-
-    const deleteResult = db.runSync(
-      'DELETE FROM steps WHERE id = ?',
-      [stepId]
-    );
-
-    if (deleteResult.changes > 0) {
-      await this.reorderStepsAfterDeletion(stepToDelete.trip_id, stepToDelete.order_index);
-      return true;
-    }
-    
-    return false;
-  } catch (error) {
-    console.error('Error deleting step:', error);
-    return false;
   }
-}
 
   static async deleteUser(userId: number): Promise<boolean> {
     try {
@@ -356,6 +356,31 @@ export class DatabaseService {
     }
   }
 
+  static async reorderSteps(tripId: number): Promise<boolean> {
+    try {
+      const steps = await this.getStepsByTripId(tripId);
+      if (!steps || steps.length === 0) return true;
+
+      const sorted = steps.sort((a, b) => {
+        const aTime = a.start_date ? new Date(a.start_date).getTime() : Number.MAX_SAFE_INTEGER;
+        const bTime = b.start_date ? new Date(b.start_date).getTime() : Number.MAX_SAFE_INTEGER;
+        if (aTime === bTime) {
+          return (a.order_index ?? 0) - (b.order_index ?? 0);
+        }
+        return aTime - bTime;
+      });
+
+      // Mettre à jour order_index de façon séquentielle (1-based)
+      for (let i = 0; i < sorted.length; i++) {
+        db.runSync('UPDATE steps SET order_index = ? WHERE id = ?', [i + 1, sorted[i].id]);
+      }
+      return true;
+    } catch (error) {
+      console.error('Error reordering steps:', error);
+      return false;
+    }
+  }
+
   static async updateStep(stepId: number, stepData: {
     title: string;
     description?: string | null;
@@ -366,6 +391,9 @@ export class DatabaseService {
     end_date: string;
   }): Promise<boolean> {
     try {
+      // récupérer l'étape avant la mise à jour pour connaître trip_id
+      const existingStep = await this.getStepById(stepId);
+
       const result = db.runSync(
         `UPDATE steps SET 
           title = ?, 
@@ -387,7 +415,15 @@ export class DatabaseService {
           stepId
         ]
       );
-      return result.changes > 0;
+
+      const updated = result.changes > 0;
+
+      // si la mise à jour a réussi et qu'on connaît le trip_id, réordonner toutes les étapes du voyage
+      if (updated && existingStep) {
+        await this.reorderSteps(existingStep.trip_id);
+      }
+
+      return updated;
     } catch (error) {
       console.error('Error updating step:', error);
       return false;
