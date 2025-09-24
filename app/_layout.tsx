@@ -5,6 +5,7 @@ import { View, Image, StyleSheet, Platform } from 'react-native';
 import { router } from 'expo-router';
 import { initDatabase } from '@/services/database';
 import { AuthProvider, useAuth } from '@/contexts/AuthContext';
+import { GestureHandlerRootView } from 'react-native-gesture-handler';
 
 function HeaderTitle() {
   return (
@@ -66,9 +67,11 @@ export default function RootLayout() {
   }, []);
 
   return (
-    <AuthProvider>
-      <RootLayoutNav />
-    </AuthProvider>
+    <GestureHandlerRootView style={{ flex: 1 }}>
+      <AuthProvider>
+        <RootLayoutNav />
+      </AuthProvider>
+    </GestureHandlerRootView>
   );
 }
 

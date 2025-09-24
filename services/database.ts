@@ -64,6 +64,7 @@ export const initDatabase = () => {
       id INTEGER PRIMARY KEY AUTOINCREMENT,
       trip_id INTEGER NOT NULL,
       title TEXT NOT NULL,
+      is_completed INTEGER DEFAULT 0,
       created_at DATETIME DEFAULT CURRENT_TIMESTAMP,
       FOREIGN KEY (trip_id) REFERENCES trips (id) ON DELETE CASCADE
     );
@@ -447,7 +448,7 @@ export class DatabaseService {
   static async createChecklist(tripId: number, title: string): Promise<number | null> {
     try {
       const result = db.runSync(
-        'INSERT INTO checklists (trip_id, title, created_at) VALUES (?, ?, datetime("now"))',
+        'INSERT INTO checklists (trip_id, title, is_completed, created_at) VALUES (?, ?, 0, datetime("now"))',
         [tripId, title]
       );
       return result.lastInsertRowId;
@@ -467,6 +468,19 @@ export class DatabaseService {
     } catch (error) {
       console.error('Error getting checklists:', error);
       return [];
+    }
+  }
+
+  static async setChecklistCompleted(checklistId: number, isCompleted: boolean): Promise<boolean> {
+    try {
+      const result = db.runSync(
+        'UPDATE checklists SET is_completed = ? WHERE id = ?',
+        [isCompleted ? 1 : 0, checklistId]
+      );
+      return result.changes > 0;
+    } catch (error) {
+      console.error('Error setting checklist completed:', error);
+      return false;
     }
   }
 

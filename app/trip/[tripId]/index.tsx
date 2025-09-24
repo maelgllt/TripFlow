@@ -316,7 +316,7 @@ export default function TripDetails() {
       onPress={() => router.push(`/checklist/create?tripId=${tripId}`)}
     >
       <Ionicons name="list" size={24} color="#fff" />
-      <Text style={styles.addChecklistButtonText}>Ajouter une checklist</Text>
+      <Text style={styles.addChecklistButtonText}>Checklist</Text>
     </TouchableOpacity>
   </View>
 );
