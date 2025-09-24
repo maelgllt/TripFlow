@@ -5,12 +5,51 @@ import {
   TouchableOpacity,
   Alert,
   ScrollView,
+  useColorScheme,
+  Image,
 } from 'react-native';
 import { Ionicons } from '@expo/vector-icons';
 import { useAuth } from '@/contexts/AuthContext';
+import React, { useEffect, useState } from 'react';
+import { DatabaseService } from '@/services/database';
+// ...existing code...
 
 export default function ProfileScreen() {
   const { user, logout, deleteAccount } = useAuth();
+  const scheme = useColorScheme() ?? 'light';
+  const isDark = scheme === 'dark';
+
+  // Stats states: only trips now
+  const [tripCount, setTripCount] = useState<number>(0);
+  const [loadingStats, setLoadingStats] = useState<boolean>(true);
+
+  useEffect(() => {
+    const loadStats = async () => {
+      setLoadingStats(true);
+      try {
+        const uid = (user as any)?.id ?? (user as any)?.userId ?? null;
+
+        // --- TRIPS (robust) ---
+        let trips: any[] = [];
+        if (typeof (DatabaseService as any).getTripsByUserId === 'function') {
+          trips = await (DatabaseService as any).getTripsByUserId(uid);
+        } else if (typeof (DatabaseService as any).getTripsForUser === 'function') {
+          trips = await (DatabaseService as any).getTripsForUser(uid);
+        } else if (typeof (DatabaseService as any).getAllTrips === 'function') {
+          const all = await (DatabaseService as any).getAllTrips();
+          trips = uid ? (all || []).filter((t: any) => String(t.user_id ?? t.userId) === String(uid)) : (all || []);
+        }
+        setTripCount(Array.isArray(trips) ? trips.length : 0);
+      } catch (err) {
+        console.warn('Erreur chargement statistiques', err);
+        setTripCount(0);
+      } finally {
+        setLoadingStats(false);
+      }
+    };
+
+    loadStats();
+  }, [user]);
 
   const handleLogout = () => {
     Alert.alert(
@@ -85,15 +124,17 @@ export default function ProfileScreen() {
   return (
     <ScrollView style={styles.container}>
       <View style={styles.header}>
-        <Text style={styles.title}>Profil</Text>
+        {/* Titre en noir */}
+        <Text style={[styles.title, { color: '#000' }]}>Profil</Text>
       </View>
+
       <View style={styles.content}>
         <View style={styles.infoSection}>
           <View style={styles.infoItem}>
             <Text style={styles.label}>Nom</Text>
             <Text style={styles.value}>{user?.name || 'Non renseigné'}</Text>
           </View>
-          
+
           <View style={styles.infoItem}>
             <Text style={styles.label}>Email</Text>
             <Text style={styles.value}>{user?.email || 'Non renseigné'}</Text>
@@ -102,16 +143,22 @@ export default function ProfileScreen() {
           <View style={styles.infoItem}>
             <Text style={styles.label}>Membre depuis</Text>
             <Text style={styles.value}>
-              {user?.created_at 
+              {user?.created_at
                 ? new Date(user.created_at).toLocaleDateString('fr-FR', {
                     year: 'numeric',
                     month: 'long',
-                    day: 'numeric'
+                    day: 'numeric',
                   })
-                : 'Non renseigné'
-              }
+                : 'Non renseigné'}
             </Text>
           </View>
+        </View>
+
+        {/* Statistique unique : carte centrée */}
+        <View style={styles.singleStatCard}>
+          <Ionicons name="airplane-outline" size={36} color="#1f2937" />
+          <Text style={styles.singleStatNumber}>{loadingStats ? '…' : tripCount}</Text>
+          <Text style={styles.singleStatLabel}>Voyages</Text>
         </View>
 
         <TouchableOpacity style={styles.logoutButton} onPress={handleLogout}>
@@ -128,16 +175,15 @@ export default function ProfileScreen() {
   );
 }
 
+// ...existing code...
 const styles = StyleSheet.create({
   container: {
     flex: 1,
-    backgroundColor: '#f5f5f5',
   },
   header: {
     padding: 20,
     paddingTop: 20,
     paddingBottom: 15,
-    backgroundColor: '#fff',
     borderBottomWidth: 1,
     borderBottomColor: '#e9ecef',
   },
@@ -151,12 +197,76 @@ const styles = StyleSheet.create({
     flex: 1,
     padding: 20,
   },
+
+  // New single-stat style
+  singleStatCard: {
+    borderRadius: 12,
+    paddingVertical: 24,
+    paddingHorizontal: 16,
+    marginVertical: 16,
+    alignItems: 'center',
+    justifyContent: 'center',
+    backgroundColor: '#fff',
+    shadowColor: '#000',
+    shadowOffset: { width: 0, height: 1 },
+    shadowOpacity: 0.12,
+    shadowRadius: 4,
+    elevation: 3,
+  },
+  singleStatNumber: {
+    fontSize: 36,
+    fontWeight: '900',
+    color: '#111827',
+    marginTop: 8,
+  },
+  singleStatLabel: {
+    fontSize: 14,
+    color: '#6b7280',
+    marginTop: 4,
+    textTransform: 'uppercase',
+    letterSpacing: 0.6,
+    fontWeight: '700',
+  },
+
+  statsCard: {
+    borderRadius: 12,
+    padding: 16,
+    marginBottom: 16,
+    marginTop: 12,
+    shadowColor: '#000',
+    shadowOffset: { width: 0, height: 1 },
+    shadowOpacity: 0.12,
+    shadowRadius: 2,
+    elevation: 2,
+  },
+  statsTitle: {
+    fontSize: 16,
+    fontWeight: '700',
+    marginBottom: 12,
+  },
+  statsRow: {
+    flexDirection: 'row',
+    justifyContent: 'space-between',
+  },
+  statItem: {
+    alignItems: 'center',
+    flex: 1,
+  },
+  statNumber: {
+    fontSize: 20,
+    fontWeight: '800',
+  },
+  statLabel: {
+    fontSize: 12,
+    color: '#666',
+    marginTop: 4,
+  },
   infoSection: {
     backgroundColor: '#fff',
     borderRadius: 12,
     padding: 20,
     marginBottom: 30,
-    marginTop: 40,
+    marginTop: 8,
     shadowColor: '#000',
     shadowOffset: {
       width: 0,
